@@ -53,7 +53,14 @@ function yesNo(value, yes, no) {
   return value === null || value === undefined ? null : el('li', { class: `tag${value ? ' on' : ''}` }, value ? yes : no);
 }
 
-function render(player, index, total, scales, direction, first) {
+function render(player, index, number, total, scales, direction) {
+  if (player.kind === 'rules') {
+    card.replaceChildren(
+      el('div', { class: 'who' }, el('span', { class: 'logo-fallback', 'aria-hidden': 'true' }, '§'), el('div', { class: 'who-text' }, el('h1', {}, player.name), el('div', { class: 'maker' }, 'How the games are played'))),
+      el('p', { class: 'description' }, player.description),
+      el('ol', { class: 'rules' }, player.rules.map((rule) => el('li', {}, rule))));
+    return finish(player, index, number, total, direction);
+  }
   const logo = player.kind === 'human'
     ? el('span', { class: 'logo-fallback', 'aria-hidden': 'true' }, 'H')
     : el('img', { class: 'logo', src: `logos/${logoKey(player.id)}.png`, alt: '', width: 64, height: 64, onerror: (e) => e.target.replaceWith(el('span', { class: 'logo-fallback', 'aria-hidden': 'true' }, player.name[0])) });
@@ -82,16 +89,22 @@ function render(player, index, total, scales, direction, first) {
       player.kind !== 'system_one' && priceRow('Output', player.price_output_per_mtok, scales.output(player.price_output_per_mtok)),
       el('div', { class: 'scale', 'aria-hidden': 'true' }, el('span', {}, 'cheapest'), el('span', {}, 'dearest'))),
   ].filter(Boolean));
+  finish(player, index, number, total, direction);
+}
+
+function finish(player, index, number, total, direction) {
   card.classList.remove('enter');
   card.style.setProperty('--from', `${direction < 0 ? -16 : 16}px`);
   void card.offsetWidth;
   card.classList.add('enter');
-  counter.textContent = player.kind === 'engine' ? '' : `${index + first} / ${total - 1 + first}`;
+  counter.textContent = number ? `${number} / ${total}` : '';
   prev.disabled = index === 0;
-  next.disabled = index === total - 1;
+  next.disabled = index === cards - 1;
   [...dots.querySelectorAll('button')].forEach((b, i) => b.setAttribute('aria-current', String(i === index)));
   document.title = `${player.name}: AI chess battle players`;
 }
+
+let cards = 0;
 
 async function main() {
   let players;
@@ -103,16 +116,18 @@ async function main() {
     card.replaceChildren(el('p', { class: 'muted' }, `Could not load the players: ${error.message}`));
     return;
   }
+  cards = players.length;
   const scales = {
     input: scaleOf(players.map((p) => p.price_input_per_mtok)),
     output: scaleOf(players.map((p) => p.price_output_per_mtok)),
   };
+  let seen = 0;
+  const numbers = players.map((p) => (['rules', 'engine'].includes(p.kind) ? null : ++seen));
   let index = 0;
-  const first = players[0]?.kind === 'engine' ? 0 : 1; // the judge is card 0, the players count from 1
   const go = (target, direction = 1) => {
-    index = Math.max(0, Math.min(players.length - 1, target));
-    history.replaceState(null, '', `#${index + first}`);
-    render(players[index], index, players.length, scales, direction, first);
+    index = Math.max(0, Math.min(cards - 1, target));
+    history.replaceState(null, '', `#${numbers[index] ?? encodeURIComponent(players[index].id)}`);
+    render(players[index], index, numbers[index], seen, scales, direction);
   };
   dots.replaceChildren(...players.map((p, i) => el('li', {}, el('button', { type: 'button', 'aria-label': p.name, title: p.name, onclick: () => go(i, i < index ? -1 : 1) }))));
   prev.addEventListener('click', () => go(index - 1, -1));
@@ -123,7 +138,8 @@ async function main() {
   });
   const wanted = decodeURIComponent(location.hash.slice(1));
   const byId = players.findIndex((p) => p.id === wanted);
-  go(byId >= 0 ? byId : wanted === '' ? 0 : Math.max(0, Number(wanted) - first || 0));
+  const byNumber = numbers.indexOf(Number(wanted));
+  go(byId >= 0 ? byId : wanted && byNumber >= 0 ? byNumber : 0);
 }
 
 main();

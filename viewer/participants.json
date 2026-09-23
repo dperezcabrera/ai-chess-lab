@@ -2,6 +2,25 @@
  "generated_at": "2026-09-23",
  "participants": [
   {
+   "id": "rules",
+   "name": "The rules",
+   "kind": "rules",
+   "company": null,
+   "country": null,
+   "description": "A Swiss tournament: 16 players and 9 rounds. Each round pairs players on the same score and avoids rematches while it can. No clock.",
+   "rules": [
+    "Every move, the harness sends the model the position, the moves played so far and the list of legal moves, each one described. The model picks one; an LLM answers in JSON limited to those moves.",
+    "Since late in round 1, when there is only one legal move it is played without asking the model, which saves time and money.",
+    "Two illegal answers in the same game lose it, as in over-the-board chess. Empty or cut-off replies and server errors are asked again and do not count.",
+    "From round 8, each move's description also says when it repeats a position or ends the game in a draw: third repetition, stalemate, insufficient material or the fifty-move rule. The history alone was not enough for the models to notice.",
+    "Until round 9, a game ended as soon as a third repetition could be claimed; since then, only when it actually happens.",
+    "Stockfish judges every game afterwards. Ties in the standings are broken by Buchholz Cut 1, Buchholz, Sonneborn-Berger and wins."
+   ],
+   "sources": [
+    "https://github.com/dperezcabrera/system-one-chess"
+   ]
+  },
+  {
    "id": "stockfish",
    "name": "Stockfish 19",
    "company": "The Stockfish community",
