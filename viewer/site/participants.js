@@ -17,7 +17,7 @@ function el(tag, attrs = {}, ...children) {
 }
 
 const logoKey = (id) => (id.startsWith('llm:') ? id.slice(4).split('/')[0] : id);
-const KIND = { llm: 'LLM', system_one: 'System One', human: 'Human' };
+const KIND = { llm: 'LLM', system_one: 'System One', human: 'Human', engine: 'Chess engine' };
 const DASH = '-';
 
 function released(value) {
@@ -58,15 +58,22 @@ function yesNo(value, yes, no) {
   return value === null || value === undefined ? null : el('li', { class: `tag${value ? ' on' : ''}` }, value ? yes : no);
 }
 
-function render(player, index, total, scales, direction) {
+function render(player, index, total, scales, direction, first) {
   const logo = player.kind === 'human'
     ? el('span', { class: 'logo-fallback', 'aria-hidden': 'true' }, 'H')
     : el('img', { class: 'logo', src: `logos/${logoKey(player.id)}.png`, alt: '', width: 64, height: 64, onerror: (e) => e.target.replaceWith(el('span', { class: 'logo-fallback', 'aria-hidden': 'true' }, player.name[0])) });
   const frontier = player.frontier && el('li', { class: `tag${player.frontier === 'frontier' ? ' on' : ''}`, title: player.frontier_note || '' }, player.frontier === 'frontier' ? 'Frontier' : player.frontier === 'former frontier' ? 'Former frontier' : 'Not frontier');
   card.replaceChildren(...[
     el('div', { class: 'who' }, logo, el('div', {}, el('h1', {}, player.name), el('div', { class: 'maker' }, [player.company, player.country].filter(Boolean).join(' · ') || DASH))),
-    el('ul', { class: 'tags' }, el('li', { class: 'tag on' }, KIND[player.kind] || player.kind), yesNo(player.reasoning, 'Reasoning', 'No reasoning'), yesNo(player.open_weights, 'Open weights', 'Closed weights'), frontier),
-    player.kind === 'human'
+    player.kind === 'engine'
+      ? el('ul', { class: 'tags' }, el('li', { class: 'tag on' }, KIND.engine), el('li', { class: 'tag on' }, 'Open source'), el('li', { class: 'tag on' }, 'Judge'))
+      : el('ul', { class: 'tags' }, el('li', { class: 'tag on' }, KIND[player.kind] || player.kind), yesNo(player.reasoning, 'Reasoning', 'No reasoning'), yesNo(player.open_weights, 'Open weights', 'Closed weights'), frontier),
+    player.kind === 'engine'
+      ? el('dl', { class: 'facts' },
+        el('div', {}, el('dt', {}, 'Released'), el('dd', {}, released(player.released))),
+        el('div', {}, el('dt', {}, 'First version'), el('dd', {}, released(player.first_released))),
+        el('div', {}, el('dt', {}, 'License'), el('dd', {}, player.license || DASH)))
+      : player.kind === 'human'
       ? el('dl', { class: 'facts' }, el('div', {}, el('dt', {}, 'Rating'), el('dd', {}, player.rating ? `${player.rating.value} on ${player.rating.site}` : DASH)))
       : el('dl', { class: 'facts' },
         el('div', {}, el('dt', {}, 'Released'), el('dd', {}, released(player.released))),
@@ -83,7 +90,7 @@ function render(player, index, total, scales, direction) {
   card.style.setProperty('--from', `${direction < 0 ? -16 : 16}px`);
   void card.offsetWidth;
   card.classList.add('enter');
-  counter.textContent = `${index + 1} / ${total}`;
+  counter.textContent = `${index + first} / ${total - 1 + first}`;
   prev.disabled = index === 0;
   next.disabled = index === total - 1;
   [...dots.querySelectorAll('button')].forEach((b, i) => b.setAttribute('aria-current', String(i === index)));
@@ -105,10 +112,11 @@ async function main() {
     output: scaleOf(players.map((p) => p.price_output_per_mtok)),
   };
   let index = 0;
+  const first = players[0]?.kind === 'engine' ? 0 : 1; // the judge is card 0, the players count from 1
   const go = (target, direction = 1) => {
     index = Math.max(0, Math.min(players.length - 1, target));
-    history.replaceState(null, '', `#${index + 1}`);
-    render(players[index], index, players.length, scales, direction);
+    history.replaceState(null, '', `#${index + first}`);
+    render(players[index], index, players.length, scales, direction, first);
   };
   dots.replaceChildren(...players.map((p, i) => el('li', {}, el('button', { type: 'button', 'aria-label': p.name, title: p.name, onclick: () => go(i, i < index ? -1 : 1) }))));
   prev.addEventListener('click', () => go(index - 1, -1));
@@ -119,7 +127,7 @@ async function main() {
   });
   const wanted = decodeURIComponent(location.hash.slice(1));
   const byId = players.findIndex((p) => p.id === wanted);
-  go(byId >= 0 ? byId : Math.max(0, Number(wanted) - 1 || 0));
+  go(byId >= 0 ? byId : wanted === '' ? 0 : Math.max(0, Number(wanted) - first || 0));
 }
 
 main();

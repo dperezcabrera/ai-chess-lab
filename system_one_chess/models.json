@@ -102,7 +102,8 @@
     "qwen": "https://unpkg.com/@lobehub/icons-static-png@latest/light/qwen-color.png",
     "kev": "https://github.com/jaredpalmer.png?size=128",
     "decider": "https://cdn-avatars.huggingface.co/v1/production/uploads/1651149592370-6225e73ec6e650de3a65dc3d.jpeg",
-    "openjev": "https://github.com/razorback16.png"
+    "openjev": "https://github.com/razorback16.png",
+    "stockfish": "https://stockfishchess.org/images/logo/icon_512x512@2x.webp"
   },
   "system_one": [
     {

@@ -584,6 +584,7 @@ def write_participants(out: Path) -> None:
     """The players' cards (viewer/participants.json, written by hand from checked sources), in the file's order."""
     source = Path(__file__).resolve().parent / "participants.json"
     if source.exists():
+        download_logos([card["id"] for card in json.loads(source.read_text())["participants"]], out)
         shutil.copy2(source, out / "data" / "participants.json")
 
 

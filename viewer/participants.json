@@ -2,6 +2,29 @@
  "generated_at": "2026-09-23",
  "participants": [
   {
+   "id": "stockfish",
+   "name": "Stockfish 19",
+   "company": "The Stockfish developers",
+   "country": "Open-source community",
+   "kind": "engine",
+   "released": "2026-09-05",
+   "first_released": "2008-11",
+   "license": "GPL-3.0",
+   "parameters": null,
+   "reasoning": null,
+   "open_weights": true,
+   "frontier": null,
+   "frontier_note": "Out of competition: it judges the games and plays none of them.",
+   "context_tokens": null,
+   "price_input_per_mtok": null,
+   "price_output_per_mtok": null,
+   "description": "A specialised chess AI, the strongest open-source engine, with a neural network (NNUE) to evaluate positions. Here it acts as the judge: it evaluates every position of every game to mark best moves, inaccuracies, mistakes and blunders and to measure each player's accuracy. No player in this tournament could rival it.",
+   "sources": [
+    "https://stockfishchess.org/about/",
+    "https://github.com/official-stockfish/Stockfish/releases/tag/sf_19"
+   ]
+  },
+  {
    "id": "llm:anthropic/claude-fable-5.1",
    "name": "Claude Fable 5.1",
    "company": "Anthropic",
