@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI chess battle: the players</title>
+<meta name="description" content="The sixteen players of the AI chess battle: who made them, when, how big they are and what they cost.">
+<link rel="stylesheet" href="participants.css">
+<script type="module" src="participants.js"></script>
+</head>
+<body>
+<main class="stage">
+  <header class="stage-head">
+    <a class="back" href="./">AI chess battle</a>
+    <span id="counter" class="counter" aria-live="polite"></span>
+  </header>
+  <article id="card" class="card" aria-live="polite"><p class="muted">Loading</p></article>
+  <nav class="stage-nav" aria-label="Players">
+    <button id="prev" class="nav-button" type="button" aria-label="Previous player">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M15 5 8 12l7 7 1.4-1.4L10.8 12l5.6-5.6z"/></svg>
+    </button>
+    <ol id="dots" class="dots"></ol>
+    <button id="next" class="nav-button" type="button" aria-label="Next player">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 5 7.6 6.4l5.6 5.6-5.6 5.6L9 19l7-7z"/></svg>
+    </button>
+  </nav>
+</main>
+</body>
+</html>

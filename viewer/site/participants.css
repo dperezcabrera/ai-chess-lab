@@ -1,0 +1,55 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f4f1ea; --surface: #ffffff; --border: #d9d2c3; --text: #24211b; --muted: #5c5547; --accent: #7a4f24;
+  --cheap: #2f9e5b; --mid: #ffffff; --dear: #d03b3b; --track: #efebe3; --focus: #2a78d6;
+  --radius: 14px; --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #1b1916; --surface: #26231f; --border: #3d3832; --text: #ece7dd; --muted: #b3ab9c; --accent: #d9a566; --track: #1b1916; --focus: #6aa8f0; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, sans-serif; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.stage { min-height: 100vh; max-width: 640px; margin: 0 auto; padding: 24px 16px; display: grid; grid-template-rows: auto 1fr auto; gap: 20px; }
+.stage-head { display: flex; justify-content: space-between; align-items: center; }
+.back { color: var(--text); font-weight: 700; text-decoration: none; }
+.counter, .muted { color: var(--muted); font-variant-numeric: tabular-nums; }
+.card { align-self: center; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px; min-height: 560px; display: flex; flex-direction: column; gap: 20px; }
+.card.enter { animation: enter 260ms var(--ease); }
+@keyframes enter { from { opacity: 0; transform: translateX(var(--from, 16px)); } to { opacity: 1; transform: none; } }
+.who { display: flex; align-items: center; gap: 16px; }
+.logo { width: 64px; height: 64px; border-radius: 14px; object-fit: contain; background: #fff; padding: 6px; border: 1px solid var(--border); flex: none; }
+.logo-fallback { width: 64px; height: 64px; border-radius: 14px; display: grid; place-items: center; background: var(--accent); color: #fff; font-size: 1.8rem; font-weight: 800; flex: none; }
+h1 { margin: 0; font-size: 1.7rem; line-height: 1.15; letter-spacing: -0.01em; }
+.maker { color: var(--muted); }
+.tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.tag { padding: 2px 10px; border-radius: 999px; border: 1px solid var(--border); font-size: 0.8rem; color: var(--muted); }
+.tag.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 0; }
+.facts div { min-width: 0; }
+.facts dt { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.facts dd { margin: 2px 0 0; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.description { margin: 0; color: var(--text); }
+.note { margin: 0; font-size: 0.85rem; color: var(--muted); }
+.prices { display: grid; gap: 10px; margin-top: auto; }
+.price { display: grid; grid-template-columns: 56px 1fr 96px; align-items: center; gap: 12px; font-size: 0.85rem; }
+.price-label { color: var(--muted); }
+.price-value { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.bar { height: 12px; border-radius: 6px; background: var(--track); border: 1px solid var(--border); overflow: hidden; }
+.bar span { display: block; height: 100%; border-radius: 6px 0 0 6px; transition: width 300ms var(--ease); }
+.scale { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--muted); padding-left: 68px; padding-right: 108px; }
+.stage-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.nav-button { width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); color: var(--text); display: grid; place-items: center; cursor: pointer; }
+.nav-button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.nav-button:disabled { opacity: 0.35; cursor: default; }
+.nav-button svg { width: 24px; height: 24px; }
+.dots { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.dots button { width: 10px; height: 10px; padding: 0; border-radius: 50%; border: 0; background: var(--border); cursor: pointer; }
+.dots button[aria-current="true"] { background: var(--accent); }
+@media (max-width: 520px) {
+  .card { padding: 20px; min-height: 620px; }
+  .facts { grid-template-columns: repeat(2, 1fr); }
+  .price { grid-template-columns: 48px 1fr 80px; }
+  .scale { padding-left: 60px; padding-right: 92px; }
+}
+@media (prefers-reduced-motion: reduce) { .card.enter { animation: none; } .bar span { transition: none; } }

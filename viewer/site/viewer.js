@@ -331,9 +331,9 @@ function teaser(t, players) {
   if (!t.next) return '';
   return el('section', { id: 'next' }, el('h2', {}, `Coming next: round ${t.next.number}`),
     el('div', { class: 'teaser-grid' }, t.next.pairings.map((pair) => el('div', { class: 'teaser' },
-      el('div', { class: 'teaser-side' }, logo(players[pair.white]), el('span', { class: 'player-name' }, players[pair.white].name), el('span', { class: 'muted' }, `No. ${t.standings.find((r) => r.id === pair.white)?.rank}`)),
+      el('div', { class: 'teaser-side' }, logo(players[pair.white]), el('span', { class: 'player-name' }, players[pair.white].name), el('span', { class: 'muted' }, `${t.rounds.length ? 'No.' : 'Seed'} ${t.standings.find((r) => r.id === pair.white)?.rank}`)),
       el('div', { class: 'teaser-vs', 'aria-hidden': 'true' }, 'vs'),
-      el('div', { class: 'teaser-side' }, logo(players[pair.black]), el('span', { class: 'player-name' }, players[pair.black].name), el('span', { class: 'muted' }, `No. ${t.standings.find((r) => r.id === pair.black)?.rank}`))))),
+      el('div', { class: 'teaser-side' }, logo(players[pair.black]), el('span', { class: 'player-name' }, players[pair.black].name), el('span', { class: 'muted' }, `${t.rounds.length ? 'No.' : 'Seed'} ${t.standings.find((r) => r.id === pair.black)?.rank}`))))),
     t.next.bye ? el('p', { class: 'muted' }, `Bye: ${players[t.next.bye].name}.`) : '');
 }
 
@@ -386,6 +386,20 @@ async function renderRound(id, number) {
 
 const filters = { round: 'all', player: 'all', result: 'all', termination: 'all' };
 
+// Before round 1 is out: who plays, the first pairings and the way to the players' cards.
+function renderLineUp(t, id, players) {
+  const chips = el('nav', { class: 'section-nav', 'aria-label': 'Rounds' }, el('span', { class: 'muted' }, 'Rounds:'),
+    Array.from({ length: t.rounds_total }, (_, i) => el('span', { class: 'pill pill-locked', 'aria-disabled': 'true', title: 'not released yet' }, `R${i + 1}`)));
+  const banner = el('section', { class: 'banner' },
+    el('div', { class: 'banner-head' },
+      el('div', {}, el('div', { class: 'highlight-label' }, 'Round 0'), el('h2', {}, `${t.standings.length} players, ${t.rounds_total} rounds, one board each`)),
+      el('a', { class: 'btn', href: 'participants.html' }, 'Meet the players', icon('next'))),
+    el('p', { class: 'muted', style: 'margin:0' }, 'Frontier and open LLMs, a System One model and one human play a Swiss chess tournament. Every model is shown the position and the list of legal moves, and answers with one. The games are released one round at a time.'));
+  const lineUp = el('section', {}, el('h2', {}, 'The players'), el('div', { class: 'lineup' }, t.standings.map((row) =>
+    el('a', { class: 'lineup-player', href: `participants.html#${encodeURIComponent(row.id)}` }, logo(players[row.id]), el('span', { class: 'player-name' }, row.name)))));
+  app.replaceChildren(el('h1', {}, t.title), chips, banner, teaser(t, players), lineUp);
+}
+
 async function renderTournament(id) {
   const t = await load(`data/${id}/tournament.json`);
   const players = Object.fromEntries(Object.entries(t.players).map(([pid, p]) => [pid, { id: pid, ...p }]));
@@ -394,6 +408,10 @@ async function renderTournament(id) {
   const gameHref = (file) => `#/t/${id}/g/${file.replace('games/', '').replace('.json', '')}`;
   document.title = `AI chess battle: ${t.title}`;
   setCrumbs([[t.title]]);
+  if (!t.rounds.length) {
+    renderLineUp(t, id, players);
+    return;
+  }
   const totals = t.totals;
   const hero = el('div', { class: 'hero' },
     [
@@ -517,7 +535,7 @@ async function renderTournament(id) {
       el('div', {}, el('div', { class: 'highlight-label' }, t.rounds.length < t.rounds_total ? 'Just released' : 'Final round'), el('h2', {}, `Round ${latest.number} of ${t.rounds_total}`)),
       el('a', { class: 'btn', href: roundHref(id, latest.number) }, 'Every game of this round', icon('next'))),
     highlightCards(t, id, latest, players, boards.observe)) || '';
-  const roundChips = el('nav', { class: 'section-nav', 'aria-label': 'Rounds' }, el('span', { class: 'muted' }, 'Rounds:'), t.rounds.map((r) => el('a', { class: 'pill', href: roundHref(id, r.number) }, `R${r.number}`)),
+  const roundChips = el('nav', { class: 'section-nav', 'aria-label': 'Rounds' }, el('a', { class: 'pill', href: 'participants.html' }, 'Meet the players'), el('span', { class: 'muted' }, 'Rounds:'), t.rounds.map((r) => el('a', { class: 'pill', href: roundHref(id, r.number) }, `R${r.number}`)),
     Array.from({ length: t.rounds_total - t.rounds.length }, (_, i) => el('span', { class: 'pill pill-locked', 'aria-disabled': 'true', title: 'not released yet' }, `R${t.rounds.length + i + 1}`)));
   const bump = t.ranks && t.rounds.length > 1 && el('section', { id: 'ranks' }, el('h2', {}, 'Place after each round'), el('div', { class: 'card' }, bumpChart(t, id))) || '';
   app.replaceChildren(el('h1', {}, t.title), el('p', { class: 'muted' }, `Started ${new Date(t.started_at * 1000).toLocaleString()}. `, el('a', { href: `data/${id}/tournament.pgn`, download: `${id}.pgn` }, 'Download every game in PGN')), roundChips, banner, teaser(t, players), hero, nav, standings, bump, charts, cross, gamesSection);

@@ -31,7 +31,7 @@ Then choose the `gh-pages` branch as the source in the repository's Pages settin
 `release.sh` builds a round into a separate site repository and commits it there:
 
 ```bash
-viewer/release.sh tournaments/<id>.json 2 ../ai-chess-battle
+viewer/release.sh tournaments/<id>.json 2 ../ai-chess-battle   # 0 publishes the players and the first pairings
 git -C ../ai-chess-battle push
 ```
 

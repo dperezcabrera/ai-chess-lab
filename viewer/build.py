@@ -374,6 +374,8 @@ def standings(participants: list[str], rounds: list[dict], human: str, logos: di
                 "blunders": sum(p.get("judgement") == "blunder" for p in mine),
             }
         )
+    if not rounds:
+        table.sort(key=lambda r: participants.index(r["id"]))
     table.sort(
         key=lambda r: (
             -r["points"],
@@ -383,7 +385,7 @@ def standings(participants: list[str], rounds: list[dict], human: str, logos: di
             -r["sonneborn_berger"],
             -r["wins"],
             r["cost_usd"] or 0.0,
-            r["name"],
+            r["name"] if rounds else participants.index(r["id"]),
         )
     )
     for rank, row in enumerate(table, 1):
@@ -458,7 +460,7 @@ def highlights(games: list[tuple[dict, str]], ranks_before: dict[str, int] | Non
 def build_tournament(path: Path, out: Path, human: str, engines: Engines | None, jobs: int, released: int | None):
     data = json.loads(path.read_text())
     tid = data["id"]
-    released = min(released or len(data["rounds"]), len(data["rounds"]))
+    released = len(data["rounds"]) if released is None else max(0, min(released, len(data["rounds"])))
     folder = out / "data" / tid
     (folder / "games").mkdir(parents=True, exist_ok=True)
     cache = CACHE / tid
@@ -558,7 +560,7 @@ def build_tournament(path: Path, out: Path, human: str, engines: Engines | None,
             "draws": sum(g["result"] == "1/2-1/2" for g in games),
         },
         "players": players,
-        "standings": history[-1] if history else [],
+        "standings": history[-1] if history else standings(data["participants"], [], human, logos),
         "ranks": ranks,
         "rounds": rounds,
         "next": teaser,
@@ -578,12 +580,25 @@ def build_tournament(path: Path, out: Path, human: str, engines: Engines | None,
     }
 
 
+def write_participants(seeds: list[str], out: Path) -> None:
+    """The players' cards (viewer/participants.json, written by hand from checked sources), in seed order."""
+    source = Path(__file__).resolve().parent / "participants.json"
+    if not source.exists():
+        return
+    cards = json.loads(source.read_text())
+    rank = {pid: i for i, pid in enumerate(seeds)}
+    cards["participants"].sort(key=lambda card: rank.get(card["id"], len(seeds)))
+    (out / "data" / "participants.json").write_text(json.dumps(cards, indent=1))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("files", type=Path, nargs="+", help="saved tournament files")
     parser.add_argument("--out", type=Path, default=Path(__file__).resolve().parent / "dist")
     parser.add_argument("--human-name", default="Human", help="how the human player is shown")
-    parser.add_argument("--rounds", type=int, help="publish only the first N rounds, as they were after round N")
+    parser.add_argument(
+        "--rounds", type=int, help="publish only the first N rounds, as they were after round N; 0 for the pairings"
+    )
     parser.add_argument("--depth", type=int, default=14, help="Stockfish depth per position")
     parser.add_argument("--no-engine", action="store_true", help="skip Stockfish, keep evaluations already built")
     parser.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) - 1), help="games analysed at once")
@@ -609,6 +624,7 @@ def main() -> None:
             entry = build_tournament(path, out, args.human_name, engines, args.jobs, args.rounds)
             listed[entry["id"]] = entry
         index_path.write_text(json.dumps(sorted(listed.values(), key=lambda t: -t["started_at"]), indent=1))
+        write_participants(json.loads(args.files[-1].read_text())["participants"], out)
     finally:
         if engines:
             engines.close()
