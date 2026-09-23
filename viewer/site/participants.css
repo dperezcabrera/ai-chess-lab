@@ -65,7 +65,7 @@ h1 { margin: 0; font-size: 1.7rem; line-height: 1.15; letter-spacing: -0.01em; }
 .cover-image { display: block; width: calc(100% + 64px); margin: 0 -32px; height: auto; aspect-ratio: 3 / 2; object-fit: cover; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .cover-title { font-size: clamp(2.4rem, 7vw, 3.6rem); letter-spacing: -0.03em; line-height: 1; }
-.cover-sub { margin: 0; max-width: 30ch; font-size: 1.15rem; color: var(--muted); }
+.cover-sub { margin: 0; max-width: 36ch; font-size: 1.15rem; color: var(--muted); }
 .cover-faces { display: grid; grid-template-columns: repeat(8, 32px); gap: 6px; margin: 0; padding: 0; list-style: none; }
 .cover-faces .logo, .cover-faces .logo-fallback { width: 32px; height: 32px; border-radius: 50%; padding: 3px; font-size: 0.85rem; }
 .cover-meta { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 20px; margin: 0; padding: 0; list-style: none; font-weight: 600; }
@@ -80,3 +80,11 @@ h1 { margin: 0; font-size: 1.7rem; line-height: 1.15; letter-spacing: -0.01em; }
   .cover-meta li + li::before { content: none; }
 }
 .card:has(.cover-image) .cover { justify-content: flex-start; }
+.card-intro { padding: 0; overflow: hidden; }
+.intro { position: relative; flex: 1; min-height: 520px; }
+.buzz { position: absolute; max-width: 72%; width: max-content; font-weight: 800; letter-spacing: -0.01em; line-height: 1.1; color: var(--text); opacity: 0; }
+.buzz:nth-child(3n) { color: var(--accent); }
+.buzz:nth-child(4n) { color: var(--muted); font-weight: 600; }
+.punchline { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; padding: 32px; text-align: center; font-size: clamp(1.8rem, 5vw, 2.6rem); font-weight: 800; letter-spacing: -0.02em; opacity: 0; }
+.cover-sub { max-width: 36ch; }
+@media (prefers-reduced-motion: reduce) { .buzz { opacity: 0.35; } .punchline { opacity: 1; } }

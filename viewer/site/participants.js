@@ -53,22 +53,68 @@ function yesNo(value, yes, no) {
   return value === null || value === undefined ? null : el('li', { class: `tag${value ? ' on' : ''}` }, value ? yes : no);
 }
 
-function renderCover(cover, players) {
-  const faces = players.filter((p) => !['cover', 'rules', 'engine'].includes(p.kind));
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let running = [];
+
+// Buzzwords pile up at odd angles, then clear for the punchline; the loop runs until the slide is left.
+function renderIntro(intro) {
+  const step = 700;
+  const hold = 5500;
+  const cycle = intro.phrases.length * step + hold;
+  const random = (seed) => { const x = Math.sin(seed * 9301 + 49297) * 233280; return x - Math.floor(x); };
+  const tilts = intro.phrases.map((_, i) => (random(i + 7) * 14 - 7).toFixed(1));
+  const phrases = intro.phrases.map((text, i) => el('span', {
+    class: 'buzz',
+    style: `left:${6 + random(i + 1) * 64}%;top:${6 + (i / intro.phrases.length) * 78}%;transform:rotate(${tilts[i]}deg);font-size:${(0.95 + random(i + 13) * 0.9).toFixed(2)}rem`,
+  }, text));
+  const punchline = el('p', { class: 'punchline' }, intro.punchline);
+  card.replaceChildren(el('div', { class: 'intro', 'aria-label': `${intro.phrases.join(', ')}. ${intro.punchline}` }, phrases, punchline));
+  const box = card.getBoundingClientRect();
+  for (const node of phrases) {
+    const room = box.width - node.offsetWidth - 16;
+    node.style.left = `${Math.max(8, Math.min(node.offsetLeft, room))}px`;
+  }
+  if (reducedMotion) return;
+  const clear = (cycle - hold + 200) / cycle;
+  running = phrases.map((node, i) => {
+    const at = (i * step) / cycle;
+    const turn = (scale) => `rotate(${tilts[i]}deg) scale(${scale})`;
+    return node.animate([
+      { offset: 0, opacity: 0, transform: turn(0.6) },
+      { offset: at, opacity: 0, transform: turn(0.6) },
+      { offset: Math.min(at + 0.03, clear - 0.01), opacity: 1, transform: turn(1) },
+      { offset: clear, opacity: 1, transform: turn(1) },
+      { offset: Math.min(clear + 0.03, 1), opacity: 0, transform: turn(1.4) },
+      { offset: 1, opacity: 0, transform: turn(1.4) },
+    ].map((frame) => ({ ...frame, easing: 'ease-out' })), { duration: cycle, iterations: Infinity });
+  });
+  running.push(punchline.animate([
+    { offset: 0, opacity: 0, transform: 'scale(0.9)' },
+    { offset: clear + 0.03, opacity: 0, transform: 'scale(0.9)' },
+    { offset: clear + 0.07, opacity: 1, transform: 'scale(1)' },
+    { offset: 0.97, opacity: 1, transform: 'scale(1)' },
+    { offset: 1, opacity: 0, transform: 'scale(1)' },
+  ], { duration: cycle, iterations: Infinity }));
+}
+
+function renderCover(cover) {
   card.replaceChildren(
     el('div', { class: 'cover' },
       cover.image && el('img', { class: 'cover-image', src: cover.image, srcset: `${cover.image.replace('.webp', '-600.webp')} 600w, ${cover.image} 1200w`, sizes: '(max-width: 640px) 100vw, 640px', alt: cover.image_alt || '', width: 1200, height: 800, fetchpriority: 'high' }),
       el('h1', { class: cover.image ? 'visually-hidden' : 'cover-title' }, cover.name),
-      el('p', { class: 'cover-sub' }, cover.description),
-      el('ul', { class: 'cover-faces', 'aria-label': 'Players' }, faces.map((p) => el('li', { title: p.name }, p.kind === 'human'
-        ? el('span', { class: 'logo-fallback', 'aria-hidden': 'true' }, 'H')
-        : el('img', { class: 'logo', src: `logos/${logoKey(p.id)}.png`, alt: p.name, width: 32, height: 32 })))),
-      el('ul', { class: 'cover-meta' }, cover.meta.map((m) => el('li', {}, m)))));
+      el('p', { class: 'cover-sub' }, cover.description)));
 }
 
 function render(player, index, number, total, scales, direction) {
+  running.forEach((animation) => animation.cancel());
+  running = [];
+  card.classList.toggle('card-intro', player.kind === 'intro');
+  if (player.kind === 'intro') {
+    renderIntro(player);
+    return finish(player, index, number, total, direction);
+  }
   if (player.kind === 'cover') {
-    renderCover(player, allPlayers);
+    renderCover(player);
     return finish(player, index, number, total, direction);
   }
   if (player.kind === 'rules') {
@@ -122,7 +168,6 @@ function finish(player, index, number, total, direction) {
 }
 
 let cards = 0;
-let allPlayers = [];
 if (new URLSearchParams(location.search).has('present')) document.body.classList.add('presenting');
 
 async function main() {
@@ -136,13 +181,12 @@ async function main() {
     return;
   }
   cards = players.length;
-  allPlayers = players;
   const scales = {
     input: scaleOf(players.map((p) => p.price_input_per_mtok)),
     output: scaleOf(players.map((p) => p.price_output_per_mtok)),
   };
   let seen = 0;
-  const numbers = players.map((p) => (['cover', 'rules', 'engine'].includes(p.kind) ? null : ++seen));
+  const numbers = players.map((p) => (['intro', 'cover', 'rules', 'engine'].includes(p.kind) ? null : ++seen));
   let index = 0;
   const go = (target, direction = 1) => {
     index = Math.max(0, Math.min(cards - 1, target));
@@ -153,8 +197,8 @@ async function main() {
   prev.addEventListener('click', () => go(index - 1, -1));
   next.addEventListener('click', () => go(index + 1, 1));
   addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); go(index + 1, 1); }
-    if (e.key === 'ArrowLeft') { e.preventDefault(); go(index - 1, -1); }
+    if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); go(index + 1, 1); }
+    if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); go(index - 1, -1); }
   });
   const wanted = decodeURIComponent(location.hash.slice(1));
   const byId = players.findIndex((p) => p.id === wanted);
