@@ -64,9 +64,9 @@ function render(player, index, total, scales, direction, first) {
     : el('img', { class: 'logo', src: `logos/${logoKey(player.id)}.png`, alt: '', width: 64, height: 64, onerror: (e) => e.target.replaceWith(el('span', { class: 'logo-fallback', 'aria-hidden': 'true' }, player.name[0])) });
   const frontier = player.frontier && el('li', { class: `tag${player.frontier === 'frontier' ? ' on' : ''}`, title: player.frontier_note || '' }, player.frontier === 'frontier' ? 'Frontier' : player.frontier === 'former frontier' ? 'Former frontier' : 'Not frontier');
   card.replaceChildren(...[
-    el('div', { class: 'who' }, logo, el('div', {}, el('h1', {}, player.name), el('div', { class: 'maker' }, [player.company, player.country].filter(Boolean).join(' · ') || DASH))),
+    el('div', { class: 'who' }, logo, el('div', { class: 'who-text' }, el('div', { class: 'title-row' }, el('h1', {}, player.name), player.role && el('span', { class: 'role' }, player.role)), el('div', { class: 'maker' }, [player.company, player.country].filter(Boolean).join(' · ') || DASH))),
     player.kind === 'engine'
-      ? el('ul', { class: 'tags' }, el('li', { class: 'tag on' }, KIND.engine), el('li', { class: 'tag on' }, 'Open source'), el('li', { class: 'tag on' }, 'Judge'))
+      ? el('ul', { class: 'tags' }, el('li', { class: 'tag on' }, KIND.engine), el('li', { class: 'tag on' }, 'Open source'))
       : el('ul', { class: 'tags' }, el('li', { class: 'tag on' }, KIND[player.kind] || player.kind), yesNo(player.reasoning, 'Reasoning', 'No reasoning'), yesNo(player.open_weights, 'Open weights', 'Closed weights'), frontier),
     player.kind === 'engine'
       ? el('dl', { class: 'facts' },

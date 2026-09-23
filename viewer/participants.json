@@ -3,9 +3,9 @@
  "participants": [
   {
    "id": "stockfish",
-   "name": "Stockfish 19, the judge",
-   "company": "The Stockfish developers",
-   "country": "Open-source community",
+   "name": "Stockfish 19",
+   "company": "The Stockfish community",
+   "country": null,
    "kind": "engine",
    "released": "2026-09-05",
    "first_released": "2008-11",
@@ -22,7 +22,8 @@
    "sources": [
     "https://stockfishchess.org/about/",
     "https://github.com/official-stockfish/Stockfish/releases/tag/sf_19"
-   ]
+   ],
+   "role": "Judge"
   },
   {
    "id": "llm:anthropic/claude-fable-5.1",
