@@ -177,6 +177,113 @@ async function renderList() {
   );
 }
 
+/* ---------- Game cards ---------- */
+
+function lazyBoards() {
+  const observer = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      const node = entry.target;
+      observer.unobserve(node);
+      Chessground(node.appendChild(el('div')), { fen: node.dataset.fen, orientation: node.dataset.orientation || 'white', lastMove: node.dataset.last ? node.dataset.last.split(',') : undefined, viewOnly: true, coordinates: false, animation: { enabled: false }, drawable: { enabled: false } });
+    }
+  }, { rootMargin: '200px' });
+  return { observe: (node) => observer.observe(node), disconnect: () => observer.disconnect() };
+}
+
+const scoreFor = (g, colour) => (!g.result ? null : g.result === '1/2-1/2' ? 'd' : (g.result === '1-0') === (colour === 'white') ? 'w' : 'l');
+const SCORE_TEXT = { w: '1', d: '½', l: '0' };
+
+function gameCard(g, players, gameHref, observe, perspective) {
+  const mine = perspective && (g.white === perspective ? 'white' : g.black === perspective ? 'black' : null);
+  const bottom = mine || 'white';
+  const top = bottom === 'white' ? 'black' : 'white';
+  const side = (colour) => {
+    const s = g.sides[colour];
+    const score = scoreFor(g, colour);
+    return el('div', { class: 'side' }, playerTag(players[g[colour]]), el('span', { class: 'muted num', title: 'accuracy' }, s.accuracy !== null ? `${Math.round(s.accuracy)}%` : ''), el('span', { class: 'score' }, score ? SCORE_TEXT[score] : ''));
+  };
+  const boardNode = el('div', { class: 'mini-board', 'data-fen': g.fen, 'data-orientation': bottom, 'data-last': g.last ? g.last.join(',') : '' });
+  observe(boardNode);
+  const blunders = mine ? g.sides[mine].blunders : g.sides.white.blunders + g.sides.black.blunders;
+  const outcome = mine && scoreFor(g, mine);
+  const cost = mine ? g.sides[mine].cost_usd : g.sides.white.cost_usd + g.sides.black.cost_usd;
+  return el('a', { class: `game-card${outcome ? ` outcome-${outcome}` : ''}`, href: gameHref(g.file), 'aria-label': `Round ${g.round}, board ${g.board}: ${players[g.white].name} against ${players[g.black].name}, ${g.result}` },
+    mine && el('div', { class: 'meta' }, el('strong', {}, `Round ${g.round}`), el('span', {}, `${mine === 'white' ? 'White' : 'Black'}${outcome ? ` · ${{ w: 'won', d: 'drew', l: 'lost' }[outcome]}` : ''}`)),
+    side(top), boardNode, side(bottom),
+    el('div', { class: 'meta' }, el('span', {}, `${mine ? '' : `R${g.round} · B${g.board} · `}${g.termination}`), el('span', {}, `${Math.ceil(g.plies / 2)} moves`)),
+    el('div', { class: 'meta' }, el('span', {}, blunders ? el('span', { class: 'j-blunder' }, `${blunders} blunder${blunders > 1 ? 's' : ''}`) : ''), el('span', {}, mine ? `${secs(g.sides[mine].seconds)} · ${money(cost)}` : money(cost))));
+}
+
+const playerHref = (id, pid) => `#/t/${id}/p/${encodeURIComponent(pid)}`;
+
+/* ---------- Player ---------- */
+
+function progression(t, pid, rounds) {
+  const W = 1000, H = 220, L = 36, R = 20, T = 14, B = 30;
+  const n = t.rounds.length;
+  let total = 0;
+  const points = [{ round: 0, total: 0 }];
+  for (const round of t.rounds) {
+    const g = round.games.find((x) => x.white === pid || x.black === pid);
+    const s = g ? scoreFor(g, g.white === pid ? 'white' : 'black') : round.bye === pid ? 'w' : null;
+    total += s === 'w' ? 1 : s === 'd' ? 0.5 : 0;
+    points.push({ round: round.number, total, s, bye: !g && round.bye === pid, g });
+  }
+  const sx = (r) => L + (r / Math.max(1, n)) * (W - L - R);
+  const sy = (v) => T + (1 - v / Math.max(1, n)) * (H - T - B);
+  const root = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'chart', role: 'img', 'aria-label': 'Points after each round' });
+  for (let v = 0; v <= n; v += Math.max(1, Math.ceil(n / 5))) root.append(svg('line', { class: 'gridline', x1: L, x2: W - R, y1: sy(v), y2: sy(v) }), svg('text', { x: L - 6, y: sy(v) + 4, 'text-anchor': 'end' }, v));
+  root.append(svg('polyline', { points: points.map((p) => `${sx(p.round)},${sy(p.round)}`).join(' '), fill: 'none', stroke: 'var(--grid)', 'stroke-width': 1.5, 'stroke-dasharray': '4 4' }));
+  root.append(svg('polyline', { points: points.map((p) => `${sx(p.round)},${sy(p.total)}`).join(' '), fill: 'none', stroke: 'var(--accent)', 'stroke-width': 2.5 }));
+  for (const p of points.slice(1)) {
+    const colour = { w: 'var(--win)', d: 'var(--draw)', l: 'var(--loss)' }[p.s] || 'var(--border)';
+    const dot = svg('a', { href: p.g ? rounds.href(p.g.file) : undefined }, svg('circle', { cx: sx(p.round), cy: sy(p.total), r: 7, fill: colour, stroke: 'var(--surface)', 'stroke-width': 2 }));
+    tip(dot, `Round ${p.round}: ${p.bye ? 'bye' : p.g ? `${{ w: 'won', d: 'drew', l: 'lost' }[p.s] || 'playing'} against ${rounds.opponent(p.g)}` : 'did not play'}\n${half(p.total)} points`);
+    root.append(dot, svg('text', { x: sx(p.round), y: H - 10, 'text-anchor': 'middle' }, `R${p.round}`));
+  }
+  return root;
+}
+
+async function renderPlayer(id, pid) {
+  const t = await load(`data/${id}/tournament.json`);
+  const players = Object.fromEntries(Object.entries(t.players).map(([key, p]) => [key, { id: key, ...p }]));
+  const row = t.standings.find((r) => r.id === pid);
+  if (!row) throw new Error(`no player ${pid} in this tournament`);
+  const gameHref = (file) => `#/t/${id}/g/${file.replace('games/', '').replace('.json', '')}`;
+  const opponent = (g) => players[g.white === pid ? g.black : g.white].name;
+  document.title = `${row.name}: ${t.title}`;
+  setCrumbs([[t.title, `#/t/${id}`], [row.name]]);
+  const picker = el('label', { class: 'field' }, 'Player', el('select', { onchange: (e) => (location.hash = playerHref(id, e.target.value)) }, t.standings.map((r) => el('option', { value: r.id, selected: r.id === pid }, `${r.rank}. ${r.name}`))));
+  const i = t.standings.indexOf(row);
+  const step = (other, label, icon_) => other ? el('a', { class: 'btn', href: playerHref(id, other.id), 'aria-label': `${label}: ${other.name}` }, icon(icon_), other.name) : '';
+  const info = players[pid];
+  const stats = [
+    [`${row.rank} of ${t.standings.length}`, 'place'],
+    [half(row.points), `points from ${row.games} games`],
+    [`${row.wins} / ${row.draws} / ${row.losses}`, 'won / drawn / lost'],
+    row.accuracy !== null && [`${row.accuracy}%`, `accuracy, ${row.acpl} average centipawn loss`],
+    row.accuracy !== null && [`${row.blunders} / ${row.mistakes} / ${row.inaccuracies}`, 'blunders / mistakes / inaccuracies'],
+    [row.seconds_per_move !== null ? `${row.seconds_per_move}s` : '', 'thinking per move'],
+    [money(row.cost_usd), `${tokens(row.input_tokens + row.output_tokens)} tokens`],
+  ].filter(Boolean);
+  const boards = lazyBoards();
+  const cards = [];
+  for (const round of t.rounds) {
+    const g = round.games.find((x) => x.white === pid || x.black === pid);
+    if (g) cards.push(gameCard({ ...g, round: round.number }, players, gameHref, boards.observe, pid));
+    else cards.push(el('div', { class: 'game-card empty-round' }, el('div', { class: 'meta' }, el('strong', {}, `Round ${round.number}`)), el('p', { class: 'muted' }, round.bye === pid ? 'Bye: one point without playing.' : 'Did not play this round.')));
+  }
+  app.replaceChildren(
+    el('div', { class: 'game-head' },
+      el('h1', {}, logo(info), `${row.name}`, info.upstream && info.upstream.toLowerCase() !== row.name.toLowerCase() ? el('span', { class: 'muted', style: 'font-size:0.9rem;font-weight:400' }, info.upstream) : ''),
+      el('div', { class: 'filters', style: 'margin:0' }, step(t.standings[i - 1], 'Player above', 'prev'), picker, step(t.standings[i + 1], 'Player below', 'next'))),
+    el('div', { class: 'hero' }, stats.map(([v, l]) => el('div', { class: 'stat' }, el('div', { class: 'stat-value' }, v), el('div', { class: 'stat-label' }, l)))),
+    el('section', {}, el('div', { class: 'card' }, el('h3', {}, 'Points after each round'), progression(t, pid, { href: gameHref, opponent }))),
+    el('section', {}, el('h2', {}, 'Games, round by round'), el('div', { class: 'games-grid' }, cards)));
+  cleanup = boards.disconnect;
+}
+
 /* ---------- Tournament ---------- */
 
 const filters = { round: 'all', player: 'all', result: 'all', termination: 'all' };
@@ -201,14 +308,15 @@ async function renderTournament(id) {
       [tokens(totals.input_tokens + totals.output_tokens), 'tokens'],
     ].map(([v, l]) => el('div', { class: 'stat' }, el('div', { class: 'stat-value' }, v), el('div', { class: 'stat-label' }, l))));
 
-  const nav = el('nav', { class: 'section-nav', 'aria-label': 'Sections' },
+  const goPlayer = el('label', { class: 'field' }, 'See one player', el('select', { onchange: (e) => e.target.value && (location.hash = playerHref(id, e.target.value)) }, el('option', { value: '' }, 'Choose a player'), rows.map((r) => el('option', { value: r.id }, `${r.rank}. ${r.name}`))));
+  const nav = el('nav', { class: 'section-nav', 'aria-label': 'Sections' }, goPlayer,
     [['standings', 'Standings'], ['charts', 'Charts'], ['crosstable', 'Crosstable'], ['games', 'Games']].map(([a, b]) => el('a', { class: 'pill', href: `#/t/${id}`, onclick: (e) => { e.preventDefault(); document.getElementById(a).scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth' }); } }, b)));
 
   // Standings
   const maxPoints = Math.max(...rows.map((r) => r.games), 1);
   const cols = [
     ['#', 'num', (r) => r.rank],
-    ['Player', '', (r) => playerTag(r)],
+    ['Player', '', (r) => el('a', { class: 'player-link', href: playerHref(id, r.id) }, playerTag(r))],
     ['Points', 'num', (r) => el('div', { class: 'points-cell' }, el('div', { class: 'points-bar', 'aria-hidden': 'true' }, el('span', { style: `width:${(r.points / maxPoints) * 100}%` })), el('strong', {}, half(r.points)))],
     ['W D L', 'center', (r) => el('span', { class: 'wdl', title: `${r.wins} won, ${r.draws} drawn, ${r.losses} lost`, 'aria-label': `${r.wins} won, ${r.draws} drawn, ${r.losses} lost` }, [...Array(r.wins)].map(() => el('span', { class: 'w' })), [...Array(r.draws)].map(() => el('span', { class: 'd' })), [...Array(r.losses)].map(() => el('span', { class: 'l' })))],
     ['BH C1', 'num', (r) => half(r.buchholz_cut1)],
@@ -237,8 +345,8 @@ async function renderTournament(id) {
   const perPlayer = rows.filter((r) => r.id !== 'human');
   const logScale = (v) => (v >= 1 ? `$${v}` : `$${v}`);
   const charts = el('section', { id: 'charts' }, el('h2', {}, 'Charts'), el('div', { class: 'charts' },
-    el('div', { class: 'card' }, el('h3', {}, 'Points against money spent'), scatter(perPlayer, { x: (r) => r.cost_usd, y: (r) => r.points, xLog: true, xLabel: 'Cost (log scale)', yLabel: 'Points', fmtX: logScale, fmtY: half })),
-    hasEval && el('div', { class: 'card' }, el('h3', {}, 'Accuracy against thinking time'), scatter(rows, { x: (r) => r.seconds_per_move, y: (r) => r.accuracy, xLog: true, xLabel: 'Seconds per move (log scale)', yLabel: 'Accuracy %', fmtX: (v) => `${v}s`, fmtY: (v) => `${Math.round(v)}` })),
+    el('div', { class: 'card' }, el('h3', {}, 'Points against money spent'), scatter(perPlayer, { x: (r) => r.cost_usd, y: (r) => r.points, xLog: true, xLabel: 'Cost (log scale)', yLabel: 'Points', fmtX: logScale, fmtY: half, href: (r) => playerHref(id, r.id) })),
+    hasEval && el('div', { class: 'card' }, el('h3', {}, 'Accuracy against thinking time'), scatter(rows, { x: (r) => r.seconds_per_move, y: (r) => r.accuracy, xLog: true, xLabel: 'Seconds per move (log scale)', yLabel: 'Accuracy %', fmtX: (v) => `${v}s`, fmtY: (v) => `${Math.round(v)}`, href: (r) => playerHref(id, r.id) })),
     hasEval && el('div', { class: 'card' }, el('h3', {}, 'Accuracy'), bars(rows, { value: (r) => r.accuracy, fmt: (v) => `${v}%`, label: 'Accuracy per player', note: (r) => `${r.blunders} blunders, ${r.mistakes} mistakes, ${r.inaccuracies} inaccuracies` })),
     hasEval && el('div', { class: 'card' }, el('h3', {}, 'Blunders per 100 moves'), bars(rows, { value: (r) => (r.moves ? (r.blunders / r.moves) * 100 : null), fmt: (v) => v.toFixed(1), label: 'Blunders per 100 moves', colour: () => 'var(--blunder)', note: (r) => `${r.blunders} in ${r.moves} moves` })),
     el('div', { class: 'card' }, el('h3', {}, 'Thinking time per move'), bars(rows, { value: (r) => r.seconds_per_move, fmt: (v) => `${v}s`, label: 'Seconds per move', colour: () => 'var(--series-white)' })),
@@ -258,7 +366,7 @@ async function renderTournament(id) {
   const score = (g, colour) => (g.result === '1/2-1/2' ? 'd' : (g.result === '1-0') === (colour === 'white') ? 'w' : 'l');
   const cross = el('section', { id: 'crosstable' }, el('h2', {}, 'Crosstable'), el('div', { class: 'card table-wrap' }, el('table', { class: 'crosstable' },
     el('thead', {}, el('tr', {}, el('th', { class: 'rowhead', scope: 'col' }, 'Player'), rows.map((r) => el('th', { class: 'colhead', scope: 'col', title: r.name }, r.rank)))),
-    el('tbody', {}, rows.map((me) => el('tr', {}, el('th', { class: 'rowhead', scope: 'row' }, el('span', { class: 'muted' }, `${me.rank}. `), playerTag(me)),
+    el('tbody', {}, rows.map((me) => el('tr', {}, el('th', { class: 'rowhead', scope: 'row' }, el('span', { class: 'muted' }, `${me.rank}. `), el('a', { class: 'player-link', href: playerHref(id, me.id) }, playerTag(me))),
       rows.map((other) => {
         if (other.id === me.id) return el('td', {}, el('div', { class: 'xcell self' }));
         const met = byPair.get(`${me.id}|${other.id}`) || [];
@@ -281,30 +389,8 @@ async function renderTournament(id) {
       select('termination', 'Ended by', [['all', 'Anything'], ...terminations.map((x) => [x, x])])),
     grid);
 
-  const observer = new IntersectionObserver((entries) => {
-    for (const entry of entries) {
-      if (!entry.isIntersecting) continue;
-      const node = entry.target;
-      observer.unobserve(node);
-      Chessground(node.appendChild(el('div')), { fen: node.dataset.fen, lastMove: node.dataset.last ? node.dataset.last.split(',') : undefined, viewOnly: true, coordinates: false, animation: { enabled: false }, drawable: { enabled: false } });
-    }
-  }, { rootMargin: '200px' });
-
-  function card(g) {
-    const side = (colour) => {
-      const p = players[g[colour]];
-      const s = g.sides[colour];
-      const pts = g.result === '1/2-1/2' ? '½' : (g.result === '1-0') === (colour === 'white') ? '1' : '0';
-      return el('div', { class: 'side' }, playerTag(p), el('span', { class: 'muted num', title: 'accuracy' }, s.accuracy !== null ? `${Math.round(s.accuracy)}%` : ''), el('span', { class: 'score' }, g.result ? pts : ''));
-    };
-    const boardNode = el('div', { class: 'mini-board', 'data-fen': g.fen, 'data-last': g.last ? g.last.join(',') : '' });
-    observer.observe(boardNode);
-    const blunders = g.sides.white.blunders + g.sides.black.blunders;
-    return el('a', { class: 'game-card', href: gameHref(g.file), 'aria-label': `Round ${g.round}, board ${g.board}: ${players[g.white].name} against ${players[g.black].name}, ${g.result}` },
-      side('black'), boardNode, side('white'),
-      el('div', { class: 'meta' }, el('span', {}, `R${g.round} · B${g.board} · ${g.termination}`), el('span', {}, `${Math.ceil(g.plies / 2)} moves`)),
-      el('div', { class: 'meta' }, el('span', {}, blunders ? el('span', { class: 'j-blunder' }, `${blunders} blunder${blunders > 1 ? 's' : ''}`) : ''), el('span', {}, money(g.sides.white.cost_usd + g.sides.black.cost_usd))));
-  }
+  const boards = lazyBoards();
+  const card = (g) => gameCard(g, players, gameHref, boards.observe);
 
   function drawGames() {
     const shown = allGames.filter((g) =>
@@ -327,7 +413,7 @@ async function renderTournament(id) {
   drawGames();
 
   app.replaceChildren(el('h1', {}, t.title), el('p', { class: 'muted' }, `Started ${new Date(t.started_at * 1000).toLocaleString()}. `, el('a', { href: `data/${id}/tournament.pgn`, download: `${id}.pgn` }, 'Download every game in PGN')), hero, nav, standings, charts, cross, gamesSection);
-  cleanup = () => observer.disconnect();
+  cleanup = boards.disconnect;
 }
 
 /* ---------- Game ---------- */
@@ -665,6 +751,7 @@ async function route() {
   const [, kind, id, sub, name] = location.hash.replace(/^#/, '').split('/');
   try {
     if (kind === 't' && sub === 'g') await renderGame(id, name);
+    else if (kind === 't' && sub === 'p') await renderPlayer(id, decodeURIComponent(name));
     else if (kind === 't') await renderTournament(id);
     else await renderList();
     if (sub !== 'g') scrollTo(0, 0);
