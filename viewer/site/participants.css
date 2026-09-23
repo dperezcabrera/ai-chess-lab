@@ -1,7 +1,7 @@
 :root {
   color-scheme: light dark;
   --bg: #f4f1ea; --surface: #ffffff; --border: #d9d2c3; --text: #24211b; --muted: #5c5547; --accent: #7a4f24;
-  --cheap: #2f9e5b; --mid: #ffffff; --dear: #d03b3b; --track: #efebe3; --focus: #2a78d6;
+  --track: #e4ded2; --focus: #2a78d6;
   --radius: 14px; --ease: cubic-bezier(0.2, 0, 0, 1);
 }
 @media (prefers-color-scheme: dark) {
@@ -36,7 +36,7 @@ h1 { margin: 0; font-size: 1.7rem; line-height: 1.15; letter-spacing: -0.01em; }
 .price-label { color: var(--muted); }
 .price-value { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
 .bar { height: 12px; border-radius: 6px; background: var(--track); border: 1px solid var(--border); overflow: hidden; }
-.bar span { display: block; height: 100%; border-radius: 6px 0 0 6px; transition: width 300ms var(--ease); }
+.bar span { display: block; height: 100%; border-radius: 6px 0 0 6px; box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.18); transition: width 300ms var(--ease); }
 .scale { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--muted); padding-left: 68px; padding-right: 108px; }
 .stage-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .nav-button { width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); color: var(--text); display: grid; place-items: center; cursor: pointer; }

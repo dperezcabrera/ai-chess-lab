@@ -28,13 +28,13 @@ function released(value) {
 }
 
 const perMillion = (v) => (v === null || v === undefined ? DASH : v === 0 ? '$0' : v < 0.1 ? `$${v.toFixed(3)}` : `$${v.toFixed(2)}`);
-const context = (n) => (!n ? DASH : n >= 1e6 ? `${(n / 1e6).toFixed(n % 1e6 ? 1 : 0)}M tokens` : `${Math.round(n / 1000)}k tokens`);
+const context = (n) => (!n ? DASH : n >= 1e6 ? `${+(n / 1e6).toFixed(1)}M tokens` : `${Math.round(n / 1000)}k tokens`);
 
 // Where a price sits among all players, on a log scale: 0 the cheapest, 1 the dearest.
 function scaleOf(values) {
   const logs = values.filter((v) => v > 0).map(Math.log10);
   const lo = Math.min(...logs), hi = Math.max(...logs);
-  return (v) => (v > 0 ? (hi > lo ? (Math.log10(v) - lo) / (hi - lo) : 0.5) : null);
+  return (v) => (v === null || v === undefined ? null : v <= 0 ? 0 : hi > lo ? (Math.log10(v) - lo) / (hi - lo) : 0.5);
 }
 
 // Green for the cheapest, white in the middle, red for the dearest.
