@@ -83,7 +83,7 @@ function render(player, index, total, scales, direction, first) {
     player.frontier_note && el('p', { class: 'note' }, player.frontier_note),
     !['engine', 'human'].includes(player.kind) && el('div', { class: 'prices' },
       priceRow('Input', player.price_input_per_mtok, scales.input(player.price_input_per_mtok)),
-      priceRow('Output', player.price_output_per_mtok, scales.output(player.price_output_per_mtok)),
+      player.kind !== 'system_one' && priceRow('Output', player.price_output_per_mtok, scales.output(player.price_output_per_mtok)),
       el('div', { class: 'scale', 'aria-hidden': 'true' }, el('span', {}, 'cheapest'), el('span', {}, 'dearest'))),
   ].filter(Boolean));
   card.classList.remove('enter');
