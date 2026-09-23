@@ -5,7 +5,7 @@ set -euo pipefail
 file=$1
 round=$2
 site=${3:-../ai-chess-battle}
-.venv/bin/python viewer/build.py "$file" --rounds "$round" --human-name "${HUMAN_NAME:-David}" --out "$site"
+.venv/bin/python viewer/build.py "$file" --rounds "$round" --human-name "${HUMAN_NAME:-Human}" --out "$site"
 git -C "$site" add -A
 git -C "$site" commit -q -m "Release round $round"
 git -C "$site" log --oneline -1

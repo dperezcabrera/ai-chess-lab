@@ -8,7 +8,7 @@ A static site to browse and analyse every game of a tournament. It needs no serv
 ## Build
 
 ```bash
-.venv/bin/python viewer/build.py tournaments/<id>.json --human-name David
+.venv/bin/python viewer/build.py tournaments/<id>.json --human-name Human
 python -m http.server -d viewer/dist
 ```
 
