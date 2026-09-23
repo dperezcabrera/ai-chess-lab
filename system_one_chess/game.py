@@ -63,6 +63,7 @@ class Game:
         self._time_limit = time_limit
         self._timed_out: chess.Color | None = None
         self._forfeited: chess.Color | None = None
+        self._settled: tuple[str, str] | None = None
         self._pardons = 0
         self._illegal = {chess.WHITE: 0, chess.BLACK: 0}
         self._jev_top: list[dict] = []
@@ -185,6 +186,7 @@ class Game:
             "time_limit": self._time_limit,
             "timed_out": self._colour_name(self._timed_out) if self._timed_out is not None else None,
             "clock_paused": self._clock_paused_at is not None,
+            "settled": list(self._settled) if self._settled else None,
         }
 
     def restore(self, record: dict) -> None:
@@ -203,6 +205,20 @@ class Game:
         self._moves = [dict(move) for move in record["moves"]]
         self._jev_top = list(record.get("jev_top", []))
         self._pardons = int(record.get("pardons", 0))
+        self._settled = tuple(record["settled"]) if record.get("settled") else None
+
+    def settle(self, result: str) -> None:
+        """Keeps a result a tournament recorded that the board no longer shows by itself: a draw an earlier rule
+        declared as soon as a repetition could be claimed, before it was played."""
+        if not result or self._over():
+            return
+        if self._board.can_claim_threefold_repetition():
+            reason = "threefold repetition, claimable"
+        elif self._board.can_claim_fifty_moves():
+            reason = "fifty moves, claimable"
+        else:
+            reason = "the recorded result"
+        self._settled = (result, reason)
 
     def _players(self) -> dict[chess.Color, str]:
         """Who sat at each colour for the rankings: a model id, or `human` for the seat the browser played."""
@@ -254,6 +270,7 @@ class Game:
     def _unmake(self) -> None:
         """Pops the last move and takes what it cost out of the totals."""
         self._board.pop()
+        self._settled = None
         move = self._moves.pop()
         colour = chess.WHITE if move["colour"] == "white" else chess.BLACK
         side = self._usage_by_colour[colour]
@@ -278,6 +295,7 @@ class Game:
                 raise IllegalMove(f"the game has {len(self._board.move_stack)} moves to take back")
             for _ in range(plies):
                 self._unmake()
+            self._settled = None
             self._forfeited = None
             self._timed_out = None
             self._turn_started = time.monotonic()
@@ -382,7 +400,12 @@ class Game:
             self._timed_out = color
 
     def _over(self) -> bool:
-        return self._forfeited is not None or self._timed_out is not None or finished(self._board)
+        return (
+            self._forfeited is not None
+            or self._timed_out is not None
+            or self._settled is not None
+            or finished(self._board)
+        )
 
     def _loser(self) -> chess.Color | None:
         return self._forfeited if self._forfeited is not None else self._timed_out
@@ -391,6 +414,8 @@ class Game:
         loser = self._loser()
         if loser is not None:
             return "0-1" if loser == chess.WHITE else "1-0"
+        if self._settled:
+            return self._settled[0]
         return self._board.result(claim_draw=True) if finished(self._board) else None
 
     async def pgn(self) -> tuple[str, str]:
@@ -437,6 +462,8 @@ class Game:
             result = f"{self._result()} on time"
         elif ended:
             result = f"{board.result(claim_draw=True)} by {ended}"
+        elif self._settled:
+            result = f"{self._settled[0]} by {self._settled[1]}"
         return {
             "game_id": self._id,
             "fen": board.fen(),

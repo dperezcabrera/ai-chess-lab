@@ -1368,3 +1368,14 @@ def test_a_game_is_not_over_until_the_third_repetition_actually_happens():
     assert not state["over"] and state["result"] is None and state["turn"] == "black"
     game._board.push_san("Ng8")
     assert game._snapshot()["result"] == "1/2-1/2 by threefold repetition"
+
+    game._board.pop()
+    game.settle("1/2-1/2")
+    state = game._snapshot()
+    assert state["over"] and state["result"] == "1/2-1/2 by threefold repetition, claimable", (
+        "a draw recorded under the earlier rule stays a draw when the game is loaded again"
+    )
+    assert Game.to_record(game)["settled"] == ["1/2-1/2", "threefold repetition, claimable"]
+    import asyncio
+
+    assert not asyncio.run(game.rewind(0))["over"], "reopening the board lets it be played on"

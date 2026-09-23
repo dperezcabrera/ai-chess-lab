@@ -211,6 +211,7 @@ class Tournament:
             for saved in round_["pairings"]:
                 game = Game(self._chooser, self._credentials, self._registry, self._session, self._session_standings)
                 game.restore(saved["game"])
+                game.settle(saved["result"])
                 boards.append(
                     {
                         "white": saved["white"],
