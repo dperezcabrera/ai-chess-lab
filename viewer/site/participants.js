@@ -57,11 +57,12 @@ function renderCover(cover, players) {
   const faces = players.filter((p) => !['cover', 'rules', 'engine'].includes(p.kind));
   card.replaceChildren(
     el('div', { class: 'cover' },
-      el('h1', { class: 'cover-title' }, cover.name),
+      cover.image && el('img', { class: 'cover-image', src: cover.image, srcset: `${cover.image.replace('.webp', '-600.webp')} 600w, ${cover.image} 1200w`, sizes: '(max-width: 640px) 100vw, 640px', alt: cover.image_alt || '', width: 1200, height: 800, fetchpriority: 'high' }),
+      el('h1', { class: cover.image ? 'visually-hidden' : 'cover-title' }, cover.name),
       el('p', { class: 'cover-sub' }, cover.description),
       el('ul', { class: 'cover-faces', 'aria-label': 'Players' }, faces.map((p) => el('li', { title: p.name }, p.kind === 'human'
         ? el('span', { class: 'logo-fallback', 'aria-hidden': 'true' }, 'H')
-        : el('img', { class: 'logo', src: `logos/${logoKey(p.id)}.png`, alt: p.name, width: 48, height: 48 })))),
+        : el('img', { class: 'logo', src: `logos/${logoKey(p.id)}.png`, alt: p.name, width: 32, height: 32 })))),
       el('ul', { class: 'cover-meta' }, cover.meta.map((m) => el('li', {}, m)))));
 }
 

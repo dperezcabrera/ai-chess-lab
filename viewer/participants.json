@@ -10,7 +10,9 @@
     "16 players",
     "9 rounds",
     "Stockfish judges every move"
-   ]
+   ],
+   "image": "cover.webp",
+   "image_alt": "A white pawn and a black pawn face each other on a chessboard under the title AI chess battle."
   },
   {
    "id": "rules",
