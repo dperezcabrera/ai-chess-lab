@@ -439,10 +439,13 @@ def llm_app(make_container, make_client, replies, seen, **env):
 
 
 def test_models_are_listed_and_llms_are_added_per_session(make_container, make_client):
+    from system_one_chess.models import DEFAULT_MODELS_FILE
+
     client = llm_app(make_container, make_client, [], [])
     listed = client.get("/api/models").json()
     configured = [entry["upstream"] for entry in listed["suggested"]]
-    assert [m["id"] for m in listed["models"]] == ["jev", "laya", "kev"] + [f"llm:{u}" for u in configured]
+    endpoints = [e["id"] for e in json.loads(DEFAULT_MODELS_FILE.read_text()).get("system_one", [])]
+    assert [m["id"] for m in listed["models"]] == ["jev", "laya", "kev", *endpoints] + [f"llm:{u}" for u in configured]
     assert listed["models"][0]["ready"] and listed["models"][0]["kind"] == "system_one"
     grok = next(m for m in listed["models"] if m["upstream"] == "x-ai/grok-4.7")
     assert grok["ready"] and not grok["removable"], "the models file configures it for every session"
@@ -1151,6 +1154,74 @@ def test_kev_answers_through_its_demo_space_or_a_local_server(make_container, ma
     client.post("/api/new", json={"human": "black", "white": "kev"})
     state = client.post("/api/jev").json()
     assert len(state["history"]) == 1 and seen == [("/v1/systemone", "Bearer k", "kev-latest")]
+
+
+def test_a_system_one_model_from_the_models_file_plays_through_its_own_server_and_key(
+    make_container, make_client, tmp_path, monkeypatch
+):
+    seen = []
+
+    def server(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        seen.append((str(request.url), request.headers.get("authorization"), body["model"]))
+        labels = list(body["questions"]["move"]["criteria"])
+        return httpx.Response(200, json={"answers": {"move": {"choice": labels[0], "probabilities": {labels[0]: 0.9}}}})
+
+    custom = tmp_path / "models.json"
+    endpoint = {"id": "openjev", "name": "OpenJev", "base_url": "https://s1.test/", "model": "openjev-latest"}
+    custom.write_text(json.dumps({"suggested": [], "logos": {}, "system_one": [endpoint | {"key_env": "S1_TEST_KEY"}]}))
+    monkeypatch.delenv("S1_TEST_KEY", raising=False)
+    client = llm_app(make_container, make_client, [], [], MODELS_FILE=str(custom))
+    llm_app.container.get(JevApi)._client = httpx.AsyncClient(transport=httpx.MockTransport(server))
+    listed = next(m for m in client.get("/api/models").json()["models"] if m["id"] == "openjev")
+    assert listed["kind"] == "system_one" and not listed["ready"] and "S1_TEST_KEY" in listed["note"]
+    monkeypatch.setenv("S1_TEST_KEY", "sk-test")
+    assert next(m for m in client.get("/api/models").json()["models"] if m["id"] == "openjev")["ready"]
+    client.post("/api/new", json={"human": "black", "white": "openjev"})
+    state = client.post("/api/jev").json()
+    assert len(state["history"]) == 1 and state["models"]["white"] == "openjev"
+    assert seen == [("https://s1.test/v1/systemone", "Bearer sk-test", "openjev-latest")]
+    from system_one_chess.models import read_models_file
+
+    custom.write_text(json.dumps({"suggested": [], "logos": {}, "system_one": [endpoint | {"id": "jev"}]}))
+    with pytest.raises(ValueError, match="system_one"):
+        read_models_file(custom)
+
+
+def test_decider_answers_through_its_demo_space_with_the_questions_written_as_text(
+    make_container, make_client, tmp_path
+):
+    sent = []
+
+    def space(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            sent.append((str(request.url), json.loads(request.content)["data"]))
+            return httpx.Response(200, json={"event_id": "ev1"})
+        questions = sent[-1][1][1]
+        first = questions.split("\n")[1][2:].split(":", 1)[0]
+        response = {"answers": {"move": {"type": "choice", "choice": first, "probabilities": {first: 0.8}}}}
+        return httpx.Response(200, text=f"event: complete\ndata: {json.dumps(['report', json.dumps(response), ''])}\n")
+
+    custom = tmp_path / "models.json"
+    entry = {
+        "id": "decider",
+        "name": "Decider",
+        "base_url": "https://decider.test",
+        "model": "d",
+        "via": "decider-space",
+    }
+    custom.write_text(json.dumps({"suggested": [], "logos": {}, "system_one": [entry]}))
+    client = llm_app(make_container, make_client, [], [], MODELS_FILE=str(custom))
+    llm_app.container.get(JevApi)._client = httpx.AsyncClient(transport=httpx.MockTransport(space))
+    listed = next(m for m in client.get("/api/models").json()["models"] if m["id"] == "decider")
+    assert listed["ready"] and listed["provider"] == "huggingface"
+    client.post("/api/new", json={"human": "black", "white": "decider"})
+    state = client.post("/api/jev").json()
+    url, data = sent[0]
+    assert url == "https://decider.test/gradio_api/call/decide" and data[2:] == [1.3, True, True]
+    head, *options = data[1].split("\n")
+    assert head.startswith("choice move: ") and len(options) == 20 and all(o.startswith("- ") for o in options)
+    assert json.loads(data[0])["fen"].startswith("rnbqkbnr") and len(state["history"]) == 1
 
 
 def test_you_can_take_your_last_move_back_with_the_reply_it_got(make_container, make_client):

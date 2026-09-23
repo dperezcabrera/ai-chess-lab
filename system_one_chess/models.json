@@ -100,6 +100,24 @@
     "z-ai": "https://unpkg.com/@lobehub/icons-static-png@latest/light/zhipu.png",
     "moonshotai": "https://unpkg.com/@lobehub/icons-static-png@latest/light/moonshot.png",
     "qwen": "https://unpkg.com/@lobehub/icons-static-png@latest/light/qwen-color.png",
-    "kev": "https://github.com/jaredpalmer.png?size=128"
-  }
+    "kev": "https://github.com/jaredpalmer.png?size=128",
+    "decider": "https://cdn-avatars.huggingface.co/v1/production/uploads/1651149592370-6225e73ec6e650de3a65dc3d.jpeg",
+    "openjev": "https://github.com/razorback16.png"
+  },
+  "system_one": [
+    {
+      "id": "decider",
+      "name": "Decider",
+      "base_url": "https://hugging-apps-decider-2b-demo.hf.space",
+      "model": "Mapika/decider-2b",
+      "via": "decider-space"
+    },
+    {
+      "id": "openjev",
+      "name": "OpenJev",
+      "base_url": "https://api.codiv.ai",
+      "model": "openjev-latest",
+      "key_env": "CODIV_API_KEY"
+    }
+  ]
 }

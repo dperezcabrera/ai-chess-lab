@@ -38,7 +38,9 @@ ROOT = Path(__file__).resolve().parent.parent
 SITE = Path(__file__).resolve().parent / "site"
 VENDOR = ROOT / "system_one_chess" / "static" / "vendor"
 MODELS_FILE = ROOT / "system_one_chess" / "models.json"
-SYSTEM_ONE = {"jev": "Jev", "laya": "Laya", "kev": "Kev"}
+SYSTEM_ONE = {"jev": "Jev", "laya": "Laya", "kev": "Kev"} | {
+    e["id"]: e["name"] for e in json.loads(MODELS_FILE.read_text()).get("system_one", [])
+}
 MATE_CP = 1000
 JUDGEMENTS = (("blunder", 0.3), ("mistake", 0.2), ("inaccuracy", 0.1))
 
@@ -152,7 +154,9 @@ class Engines:
             pv = info.get("pv") or []
             evals.append(
                 {
-                    "cp": score.score(mate_score=100000) if not score.is_mate() else (MATE_CP if score.mate() > 0 else -MATE_CP),
+                    "cp": score.score(mate_score=100000)
+                    if not score.is_mate()
+                    else (MATE_CP if score.mate() > 0 else -MATE_CP),
                     "mate": score.mate(),
                     "best": board.san(pv[0]) if pv else None,
                     "best_uci": pv[0].uci() if pv else None,
@@ -215,16 +219,24 @@ def build_game(entry: dict, round_number: int, board_number: int, previous: dict
                 "at": record.get("at"),
                 "call": {
                     key: call.get(key)
-                    for key in ("reply", "finish_reason", "reasoning_chars", "blanks", "truncated", "schema", "max_tokens")
+                    for key in (
+                        "reply",
+                        "finish_reason",
+                        "reasoning_chars",
+                        "blanks",
+                        "truncated",
+                        "schema",
+                        "max_tokens",
+                    )
                     if call.get(key) not in (None, "", 0, False)
                 },
             }
         )
     evals = None
     depth = None
-    if previous and previous.get("moves_uci") == game["moves_uci"] and previous.get("evals"):
-        if engines is None or previous.get("depth") == engines.depth:
-            evals, depth = previous["evals"], previous.get("depth")
+    reusable = previous and previous.get("moves_uci") == game["moves_uci"] and previous.get("evals")
+    if reusable and (engines is None or previous.get("depth") == engines.depth):
+        evals, depth = previous["evals"], previous.get("depth")
     if evals is None and engines is not None and game["moves_uci"]:
         evals, depth = engines.evaluate(game["moves_uci"]), engines.depth
     if evals:
@@ -311,14 +323,25 @@ def standings(data: dict, games: list[dict], human: str, logos: dict[str, str]) 
                 "cost_usd": round(row.get("cost_usd", 0.0), 6),
                 "accuracy": round(sum(p["accuracy"] for p in judged) / len(judged), 1) if judged else None,
                 "acpl": round(sum(min(p["loss"], MATE_CP) for p in judged) / len(judged), 1) if judged else None,
-                "best_rate": round(sum(p.get("judgement") == "best" for p in judged) / len(judged), 3) if judged else None,
+                "best_rate": round(sum(p.get("judgement") == "best" for p in judged) / len(judged), 3)
+                if judged
+                else None,
                 "inaccuracies": sum(p.get("judgement") == "inaccuracy" for p in mine),
                 "mistakes": sum(p.get("judgement") == "mistake" for p in mine),
                 "blunders": sum(p.get("judgement") == "blunder" for p in mine),
             }
         )
     rows.sort(
-        key=lambda r: (-r["points"], -r["buchholz_cut1"], -r["buchholz"], -r["buchholz_cut2"], -r["sonneborn_berger"], -r["wins"], r["cost_usd"], r["name"])
+        key=lambda r: (
+            -r["points"],
+            -r["buchholz_cut1"],
+            -r["buchholz"],
+            -r["buchholz_cut2"],
+            -r["sonneborn_berger"],
+            -r["wins"],
+            r["cost_usd"],
+            r["name"],
+        )
     )
     for rank, row in enumerate(rows, 1):
         row["rank"] = rank
@@ -362,7 +385,9 @@ def build_tournament(path: Path, out: Path, human: str, engines: Engines | None,
             "name": player_name(pid, human),
             "logo": logos.get(logo_key(pid), ""),
             "kind": "human" if pid == "human" else ("system_one" if pid in SYSTEM_ONE else "llm"),
-            "upstream": pid.removeprefix("llm:") if pid.startswith("llm:") else models.get(pid, {}).get("upstream", pid),
+            "upstream": pid.removeprefix("llm:")
+            if pid.startswith("llm:")
+            else models.get(pid, {}).get("upstream", pid),
             "tier": models.get(pid, {}).get("tier", ""),
             "pricing": models.get(pid, {}).get("pricing"),
             "reasoning": models.get(pid, {}).get("reasoning"),

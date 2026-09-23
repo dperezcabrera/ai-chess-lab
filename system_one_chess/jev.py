@@ -1,4 +1,5 @@
 import asyncio
+import json
 import time
 from dataclasses import dataclass
 
@@ -6,6 +7,7 @@ import chess
 import httpx
 from pico_ioc import cleanup, component
 
+from .hf import hf_headers
 from .kev import NOT_CONFIGURED as KEV_NOT_CONFIGURED
 from .kev import KevModel
 from .laya import LayaModel
@@ -73,6 +75,43 @@ class JevApi:
         )
         response.raise_for_status()
         return response.json()
+
+    async def decider_space(self, gateway: Gateway, body: dict) -> dict:
+        """The decider demo Space's Gradio API: `decide` takes the state as JSON and the questions as text, one
+        paragraph per question (`choice <id>: <instructions>` then `- <option>: <description>` lines), plus the
+        temperature (1.3, the calibrated one) and two toggles; its second output is the /v1/systemone JSON."""
+        paragraphs = []
+        for qid, question in body["questions"].items():
+            lines = [f"{question['type']} {qid}: {' '.join(str(question['instructions']).split())}"]
+            for name, description in (question.get("criteria") or {}).items():
+                lines.append(f"- {name}: {' '.join(str(description).split())}" if description else f"- {name}")
+            paragraphs.append("\n".join(lines))
+        data = [json.dumps(body["state"]), "\n\n".join(paragraphs), 1.3, True, True]
+        base = gateway.base_url.rstrip("/")
+        submitted = await post_with_retries(
+            self._client,
+            f"{base}/gradio_api/call/decide",
+            json={"data": data},
+            headers=hf_headers(),
+            timeout=gateway.timeout_seconds,
+        )
+        submitted.raise_for_status()
+        event = submitted.json()["event_id"]
+        streamed = await self._client.get(
+            f"{base}/gradio_api/call/decide/{event}", headers=hf_headers(), timeout=gateway.timeout_seconds
+        )
+        streamed.raise_for_status()
+        payload = None
+        for line in streamed.text.splitlines():
+            if line.startswith("event: error"):
+                raise RuntimeError(f"the {gateway.name} Space reported an error: {streamed.text[:300]}")
+            if line.startswith("data: "):
+                payload = json.loads(line[6:])
+        response = json.loads(payload[1]) if payload and len(payload) > 1 and isinstance(payload[1], str) else None
+        if not response or "answers" not in response:
+            report = payload[0] if payload else streamed.text
+            raise RuntimeError(f"unexpected reply from the {gateway.name} Space: {str(report)[:300]}")
+        return response
 
     @cleanup
     def close(self) -> None:
@@ -186,6 +225,9 @@ class JevMoveChooser:
             return model[4:]
         if model == "kev":
             return self._kev.upstream if self._kev else "kev"
+        endpoint = self._registry.endpoint(model) if self._registry else None
+        if endpoint:
+            return endpoint.gateway.model
         return self._provider.gateway(credentials, model).model
 
     async def ask(
@@ -204,10 +246,13 @@ class JevMoveChooser:
         spellings of the labels an LLM may use, which do not count as illegal."""
         if model.startswith("llm:"):
             return await self._ask_llm(board, instructions, criteria, credentials, model[4:], illegal_so_far, aliases)
+        endpoint = self._registry.endpoint(model) if self._registry else None
         if model == "kev":
             if self._kev is None or not self._kev.ready:
                 raise JevError(KEV_NOT_CONFIGURED)
             gateway = Gateway("kev", "", "", self._kev.upstream, 0.0, False)
+        elif endpoint:
+            gateway = endpoint.gateway
         else:
             gateway = self._provider.gateway(credentials, model)
             if not gateway.ready:
@@ -221,6 +266,10 @@ class JevMoveChooser:
             body = {"model": gateway.model, "state": state, "questions": {"move": question}}
             if model == "kev":
                 response = await self._kev.system_one(body)
+            elif endpoint and endpoint.via == "decider-space":
+                response = await self._api.decider_space(gateway, body)
+            elif endpoint:
+                response = await self._api.system_one(gateway, body)
             else:
                 response = await (self._laya.system_one(body) if gateway.local else self._api.system_one(gateway, body))
             answer = response["answers"]["move"]
