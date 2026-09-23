@@ -1,5 +1,6 @@
 import { Chessground } from './vendor/chessground/chessground.min.js';
 import { DEPTHS, analyzeGame, decileLabel, renderChart, renderDeciles } from './analysis.js';
+import { pickModels } from './picker.js';
 
 const $ = (id) => document.getElementById(id);
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -683,6 +684,31 @@ function logoNode(model) {
   return img;
 }
 
+function modelSubtitle(model) {
+  if (model.kind === 'llm') return `${suggestedTiers.get(model.upstream) || 'LLM'} \u00b7 ${model.upstream}`;
+  const where = model.provider === 'huggingface' ? 'HF Space' : model.provider === 'laya' || model.provider === 'kev' ? 'local' : 'cloud';
+  return `System One \u00b7 ${where}`;
+}
+
+const pickable = () => models.map((model) => ({ ...model, subtitle: modelSubtitle(model) }));
+const chevron = () => Object.assign(document.createElement('span'), { className: 'pick-chevron', textContent: 'Change' });
+
+function fillPickField(button, picked) {
+  const words = Object.assign(document.createElement('span'), { className: 'pick-words' });
+  if (picked.length === 1) {
+    const model = models.find((m) => m.id === picked[0]) || { id: picked[0], name: picked[0] };
+    words.append(Object.assign(document.createElement('span'), { className: 'pick-name', textContent: model.name }), Object.assign(document.createElement('span'), { className: 'pick-sub', textContent: model.upstream ? modelSubtitle(model) : '' }));
+    button.replaceChildren(logoNode(model), words, chevron());
+    return;
+  }
+  const faces = Object.assign(document.createElement('span'), { className: 'pick-faces' });
+  faces.append(...picked.slice(0, 6).map((id) => logoNode(models.find((m) => m.id === id) || { name: id })));
+  const names = picked.map(modelName);
+  const summary = !names.length ? 'No model yet' : names.length <= 3 ? names.join(', ') : `${names.slice(0, 3).join(', ')} and ${names.length - 3} more`;
+  words.append(Object.assign(document.createElement('span'), { className: 'pick-name', textContent: `${picked.length} model${picked.length === 1 ? '' : 's'}` }), Object.assign(document.createElement('span'), { className: 'pick-sub', textContent: summary }));
+  button.replaceChildren(faces, words, chevron());
+}
+
 let standingsKey = null;
 
 async function loadStandings() {
@@ -1028,20 +1054,12 @@ const tournamentDialog = $('tournament-dialog');
 const tournamentForm = $('tournament-form');
 const ROUND_CHOICES = [1, 2, 3, 4, 5, 6, 7];
 
+let chosenParticipants = null;
+
 function renderParticipants() {
-  const box = $('participants');
-  const picked = new Set([...tournamentForm.querySelectorAll('input[name="participant"]:checked')].map((input) => input.value));
-  box.replaceChildren(...models.map((model) => {
-    const chip = document.createElement('label');
-    chip.className = 'chip';
-    const input = Object.assign(document.createElement('input'), { type: 'checkbox', name: 'participant', value: model.id, disabled: !model.ready, checked: model.ready && (picked.size ? picked.has(model.id) : model.kind === 'system_one') });
-    const text = Object.assign(document.createElement('span'), { className: 'chip-text' });
-    const tier = (suggestedTiers.get(model.upstream) || (model.kind === 'system_one' ? 'System One' : 'LLM'));
-    text.append(Object.assign(document.createElement('span'), { className: 'chip-name', textContent: model.name }), Object.assign(document.createElement('small'), { textContent: model.ready ? `${tier} \u00b7 ${model.upstream}` : model.note }));
-    chip.title = model.upstream;
-    chip.append(input, logoNode(model), text);
-    return chip;
-  }));
+  const ready = new Set(models.filter((model) => model.ready).map((model) => model.id));
+  chosenParticipants = (chosenParticipants ?? models.filter((model) => model.kind === 'system_one').map((model) => model.id)).filter((id) => ready.has(id));
+  fillPickField($('participants-field'), chosenParticipants);
   if (!$('rounds-options').children.length) {
     $('rounds-options').replaceChildren(...ROUND_CHOICES.map((n) => {
       const label = document.createElement('label');
@@ -1053,8 +1071,15 @@ function renderParticipants() {
   syncTournamentDialog();
 }
 
+$('participants-field').addEventListener('click', async () => {
+  const picked = await pickModels({ heading: 'Players', models: pickable(), selected: chosenParticipants || [], multiple: true, logo: logoNode });
+  if (!picked) return;
+  chosenParticipants = picked;
+  renderParticipants();
+});
+
 function tournamentChoice() {
-  const participants = [...tournamentForm.querySelectorAll('input[name="participant"]:checked')].map((input) => input.value);
+  const participants = [...(chosenParticipants || [])];
   const human = tournamentForm.elements.human.value === 'yes';
   const rounds = parseInt(tournamentForm.elements.rounds.value, 10);
   const time_limit = parseInt(tournamentForm.elements.time_limit.value, 10);
@@ -1162,29 +1187,29 @@ $('tournament-stop').addEventListener('click', async () => {
   }
 });
 
+const PICK_HEADINGS = { opponent: 'Opponent', white: 'White', black: 'Black' };
+
 function renderSegments() {
-  for (const box of sideForm.querySelectorAll('[data-segment]')) {
-    const name = box.dataset.segment;
+  for (const button of sideForm.querySelectorAll('[data-pick]')) {
+    const name = button.dataset.pick;
     if (!models.some((model) => model.id === chosen[name] && model.ready)) chosen[name] = (models.find((model) => model.ready) || models[0] || { id: 'jev' }).id;
-    box.replaceChildren(...models.map((model) => {
-      const label = document.createElement('label');
-      label.className = `segment-option${model.ready ? '' : ' segment-unavailable'}`;
-      const input = Object.assign(document.createElement('input'), { type: 'radio', name, value: model.id, checked: model.id === chosen[name], disabled: !model.ready });
-      const title = Object.assign(document.createElement('span'), { className: 'model-head' });
-      title.append(logoNode(model), Object.assign(document.createElement('span'), { className: 'model-head-name', textContent: model.name }));
-      const note = Object.assign(document.createElement('small'), { textContent: model.ready ? (model.kind === 'llm' ? 'LLM' : model.provider === 'laya' || model.provider === 'kev' ? 'local' : model.provider === 'huggingface' ? 'HF Space' : 'cloud') : model.note });
-      label.append(input, title, note);
-      return label;
-    }));
+    fillPickField(button, [chosen[name]]);
   }
+}
+
+for (const button of sideForm.querySelectorAll('[data-pick]')) {
+  button.addEventListener('click', async () => {
+    const name = button.dataset.pick;
+    const picked = await pickModels({ heading: PICK_HEADINGS[name], models: pickable(), selected: [chosen[name]], logo: logoNode });
+    if (!picked) return;
+    chosen[name] = picked[0];
+    renderSegments();
+    syncSideDialog();
+  });
 }
 
 function syncSideDialog() {
   const play = sideForm.elements.mode.value === 'play';
-  for (const name of ['opponent', 'white', 'black']) {
-    const picked = sideForm.querySelector(`input[name="${name}"]:checked`);
-    if (picked) chosen[name] = picked.value;
-  }
   $('opponent-segment').hidden = !play;
   $('side-cards').hidden = !play;
   $('white-segment').hidden = play;

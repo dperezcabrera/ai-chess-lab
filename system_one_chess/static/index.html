@@ -512,7 +512,7 @@
     <div class="side-body">
       <fieldset class="segment" id="participants-segment">
         <legend>Players</legend>
-        <div class="chip-list" id="participants" role="group" aria-label="Participants"></div>
+        <button class="pick-field" type="button" id="participants-field" aria-haspopup="dialog"></button>
       </fieldset>
 
       <fieldset class="segment" id="you-segment">
@@ -559,6 +559,29 @@
     </footer>
   </form>
 </dialog>
+<dialog id="picker-dialog" class="picker" aria-labelledby="picker-title">
+  <header class="picker-head">
+    <h2 id="picker-title">Choose a model</h2>
+    <button id="picker-close" class="picker-icon" type="button" aria-label="Close">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7l-1.4-1.4L9.2 12 2.9 5.7l1.4-1.4 6.3 6.3 6.3-6.3z"/></svg>
+    </button>
+  </header>
+  <label class="picker-search">
+    <span class="visually-hidden">Search models</span>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4a6 6 0 0 1 4.8 9.6l4.8 4.8-1.4 1.4-4.8-4.8A6 6 0 1 1 10 4zm0 2a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/></svg>
+    <input id="picker-search" type="search" placeholder="Search by name, vendor or kind" autocomplete="off">
+  </label>
+  <div id="picker-list" class="picker-list" role="list"></div>
+  <nav class="picker-pages" aria-label="Pages">
+    <button id="picker-prev" class="picker-icon" type="button" aria-label="Previous page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 8 12l7 7 1.4-1.4L10.8 12l5.6-5.6z"/></svg></button>
+    <span id="picker-page" class="picker-page"></span>
+    <button id="picker-next" class="picker-icon" type="button" aria-label="Next page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5 7.6 6.4l5.6 5.6-5.6 5.6L9 19l7-7z"/></svg></button>
+  </nav>
+  <footer id="picker-footer" class="picker-foot">
+    <span id="picker-count" class="picker-count"></span>
+    <button id="picker-done" class="button" type="button">Done</button>
+  </footer>
+</dialog>
 <dialog id="side-dialog" class="side-dialog" aria-labelledby="side-title">
   <form id="side-form" class="side-form">
     <header class="side-header">
@@ -577,17 +600,17 @@
 
       <fieldset class="segment" id="opponent-segment">
         <legend>Opponent</legend>
-        <div class="segment-options" data-segment="opponent"></div>
+        <button class="pick-field" type="button" data-pick="opponent" aria-haspopup="dialog"></button>
       </fieldset>
 
       <fieldset class="segment" id="white-segment" hidden>
         <legend>White</legend>
-        <div class="segment-options" data-segment="white"></div>
+        <button class="pick-field" type="button" data-pick="white" aria-haspopup="dialog"></button>
       </fieldset>
 
       <fieldset class="segment" id="black-segment" hidden>
         <legend>Black</legend>
-        <div class="segment-options" data-segment="black"></div>
+        <button class="pick-field" type="button" data-pick="black" aria-haspopup="dialog"></button>
       </fieldset>
 
       <div class="side-options" id="side-cards" role="group" aria-label="Your side">
