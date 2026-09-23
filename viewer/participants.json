@@ -25,9 +25,9 @@
    ],
    "role": "Judge",
    "metric": {
-    "name": "Centipawn loss",
+    "name": "Centipawn (cp) loss",
     "summary": "the metric, higher is worse",
-    "text": "How many hundredths of a pawn a move gives away against Stockfish's best move."
+    "text": "How many cp, hundredths of a pawn, a move gives away against Stockfish's best move."
    }
   },
   {
