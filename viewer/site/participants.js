@@ -37,13 +37,8 @@ function scaleOf(values) {
   return (v) => (v === null || v === undefined ? null : v <= 0 ? 0 : hi > lo ? (Math.log10(v) - lo) / (hi - lo) : 0.5);
 }
 
-// Green for the cheapest, white in the middle, red for the dearest.
-function colourAt(t) {
-  const mix = (a, b, f) => a.map((x, i) => Math.round(x + (b[i] - x) * f));
-  const green = [47, 158, 91], white = [255, 255, 255], red = [208, 59, 59];
-  const rgb = t < 0.5 ? mix(green, white, t / 0.5) : mix(white, red, (t - 0.5) / 0.5);
-  return `rgb(${rgb.join(' ')})`;
-}
+// The rainbow from green for the cheapest, through yellow and orange, to red for the dearest.
+const colourAt = (t) => `hsl(${Math.round(130 * (1 - t))} 78% 48%)`;
 
 function priceRow(label, value, position) {
   const width = position === null ? 0 : 8 + position * 92;
