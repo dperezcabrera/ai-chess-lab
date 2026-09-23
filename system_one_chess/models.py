@@ -20,7 +20,7 @@ from .settings import LLMSettings, ModelsSettings
 
 LLM_LIMIT = 12
 LLM_PREFIX = "llm:"
-BUILT_IN = {"jev": "Jev", "laya": "Laya", "kev": "Kev", "human": "You"}
+BUILT_IN = {"jev": "Jev", "laya": "Laya", "kev": "Kev", "human": "Human"}
 VIA = ("http", "decider-space")
 
 

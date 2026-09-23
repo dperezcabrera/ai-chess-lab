@@ -645,7 +645,7 @@ def test_finished_games_build_a_session_ranking(make_container, make_client):
     assert state["over"] and state["result"] == "1-0 by illegal moves"
     rows = client.get("/api/standings").json()["rows"]
     assert [(row["rank"], row["id"], row["name"], row["points"]) for row in rows] == [
-        (1, "human", "You", 1.0),
+        (1, "human", "Human", 1.0),
         (2, "llm:openai/gpt-5-mini", "gpt-5-mini", 0.0),
     ]
     llm = rows[1]
@@ -701,7 +701,7 @@ def test_a_swiss_tournament_plays_its_boards_itself_and_waits_for_you(make_conta
     first = view["rounds"][0]
     board = first["pairings"][0]
     assert (board["white"]["id"], board["black"]["id"]) == ("llm:openai/gpt-5-mini", "jev") and board["board"] == 1
-    assert first["bye"] == {"id": "human", "name": "You", "logo": ""}, "three players: the last seed sits out"
+    assert first["bye"] == {"id": "human", "name": "Human", "logo": ""}, "three players: the last seed sits out"
     assert view["human_board"] is None and board["human"] == "none" and board["clock"] == {"white": 0.0, "black": 0.0}
 
     view = until(lambda: (v := client.get("/api/tournament").json()) and v["round"] == 2 and v)
@@ -836,7 +836,7 @@ def test_a_tournament_is_saved_after_every_move_and_can_be_resumed_by_a_new_serv
     until(lambda: (s := client.get("/api/tournament/board/1").json()) and s["humans_turn"] and s)
     listed = client.get("/api/tournaments").json()["tournaments"]
     assert [t["id"] for t in listed] == [tournament_id] and listed[0]["current"] and not listed[0]["done"]
-    assert listed[0]["round"] == 2 and listed[0]["finished_games"] == 1 and "You" in listed[0]["participants"]
+    assert listed[0]["round"] == 2 and listed[0]["finished_games"] == 1 and "Human" in listed[0]["participants"]
 
     path = saved_dir / f"{tournament_id}.json"
     data = json.loads(path.read_text())

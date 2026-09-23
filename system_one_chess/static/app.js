@@ -140,7 +140,7 @@ document.addEventListener('keydown', (event) => {
 });
 
 function playerOf(state, colour) {
-  if (state.human === colour) return { id: 'human', name: 'You', logo: '' };
+  if (state.human === colour) return { id: 'human', name: 'Human', logo: '' };
   const id = state.models[colour];
   return models.find((model) => model.id === id) || { id, name: id.replace(/^llm:[^/]*\//, ''), logo: '' };
 }
@@ -374,7 +374,7 @@ async function runAnalysis() {
 }
 
 function playerName(color) {
-  const who = currentHuman === color ? 'You' : modelName(current && current.models ? current.models[color] : 'jev');
+  const who = currentHuman === color ? 'Human' : modelName(current && current.models ? current.models[color] : 'jev');
   return `${color === 'white' ? 'White' : 'Black'} (${who})`;
 }
 
