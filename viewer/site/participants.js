@@ -86,7 +86,7 @@ function render(player, index, total, scales, direction, first) {
   card.style.setProperty('--from', `${direction < 0 ? -16 : 16}px`);
   void card.offsetWidth;
   card.classList.add('enter');
-  counter.textContent = `${index + first} / ${total - 1 + first}`;
+  counter.textContent = player.kind === 'engine' ? '' : `${index + first} / ${total - 1 + first}`;
   prev.disabled = index === 0;
   next.disabled = index === total - 1;
   [...dots.querySelectorAll('button')].forEach((b, i) => b.setAttribute('aria-current', String(i === index)));
