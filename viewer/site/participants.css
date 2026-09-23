@@ -57,5 +57,4 @@ h1 { margin: 0; font-size: 1.7rem; line-height: 1.15; letter-spacing: -0.01em; }
 .title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .role { padding: 4px 14px; border-radius: 999px; background: var(--accent); color: var(--surface); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; flex: none; }
 @media (max-width: 520px) { h1 { font-size: 1.35rem; } .role { padding: 3px 10px; font-size: 0.72rem; } }
-.metric { margin: 0; padding: 12px 14px; border-left: 3px solid var(--accent); background: var(--track); border-radius: 0 8px 8px 0; font-size: 0.9rem; }
-.metric strong { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); }
+.metric p { margin: 0; }

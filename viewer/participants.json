@@ -26,7 +26,8 @@
    "role": "Judge",
    "metric": {
     "name": "Centipawn loss",
-    "text": "The reference measure: how many hundredths of a pawn a move gives away compared with Stockfish's best move. Averaged over a game it is the ACPL. Higher is worse."
+    "summary": "the metric, higher is worse",
+    "text": "How many hundredths of a pawn a move gives away against Stockfish's best move."
    }
   },
   {

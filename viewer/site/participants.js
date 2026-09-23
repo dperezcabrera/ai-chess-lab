@@ -75,7 +75,7 @@ function render(player, index, total, scales, direction, first) {
         el('div', {}, el('dt', {}, 'Parameters'), el('dd', {}, player.parameters || DASH)),
         el('div', {}, el('dt', {}, 'Context'), el('dd', {}, context(player.context_tokens)))),
     el('p', { class: 'description' }, player.description || ''),
-    player.metric && el('p', { class: 'metric' }, el('strong', {}, player.metric.name), ' ', player.metric.text),
+    player.metric && el('div', { class: 'metric' }, el('p', {}, el('strong', {}, `${player.metric.name}:`), ` ${player.metric.summary}`), el('p', {}, player.metric.text)),
     player.frontier_note && el('p', { class: 'note' }, player.frontier_note),
     !['engine', 'human'].includes(player.kind) && el('div', { class: 'prices' },
       priceRow('Input', player.price_input_per_mtok, scales.input(player.price_input_per_mtok)),
