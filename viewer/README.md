@@ -23,3 +23,16 @@ git push -f https://github.com/dperezcabrera/system-one-chess.git gh-pages
 ```
 
 Then choose the `gh-pages` branch as the source in the repository's Pages settings.
+
+## Release a tournament round by round
+
+`--rounds N` builds the site as the tournament stood after round N. The standings, the rank history and the highlights come from those rounds alone. Later games are left out of the output, and the pairings of the next round appear as a teaser. The human player's time, tokens and cost are never published.
+
+`release.sh` builds a round into a separate site repository and commits it there:
+
+```bash
+viewer/release.sh tournaments/<id>.json 2 ../ai-chess-battle
+git -C ../ai-chess-battle push
+```
+
+Engine evaluations are cached in `viewer/cache`, so a release only analyses its new games.

@@ -180,3 +180,32 @@ select { font: inherit; min-height: 36px; padding: 0 var(--space-2); border: 1px
 .game-card.outcome-l { box-shadow: inset 0 3px 0 var(--loss); }
 .empty-round { justify-content: flex-start; min-height: 200px; }
 .btn svg { width: 1.1em; height: 1.1em; flex: none; }
+
+.delta { display: inline-flex; align-items: center; gap: 1px; font-size: 0.75rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.delta svg { width: 12px; height: 12px; }
+.delta.up { color: var(--win); } .delta.down { color: var(--loss); }
+.banner { background: var(--surface); border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.5); padding: var(--space-4); box-shadow: inset 0 4px 0 var(--accent); }
+.banner-head { display: flex; justify-content: space-between; align-items: end; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-3); }
+.banner h2 { font-size: 1.8rem; margin: 0; }
+.highlights { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-3); }
+.highlight { display: grid; grid-template-columns: 1fr 120px; gap: var(--space-3); align-items: center; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); color: var(--text); text-decoration: none; min-height: 150px; transition: transform 120ms var(--ease); }
+.highlight:hover { transform: translateY(-2px); border-color: var(--accent); }
+.highlight p { margin: 4px 0 0; font-size: 0.85rem; color: var(--text-muted); }
+.highlight-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.highlight-figure { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.tone-blunder .highlight-figure { color: var(--blunder); } .tone-win .highlight-figure { color: var(--win); }
+.tone-best .highlight-figure { color: var(--best); } .tone-accent .highlight-figure { color: var(--accent); }
+.teaser-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-3); }
+.teaser { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--space-2); padding: var(--space-3); background: var(--surface); border: 1px dashed var(--accent); border-radius: var(--radius); min-height: 96px; }
+.teaser-side { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; min-width: 0; max-width: 100%; font-size: 0.85rem; }
+.teaser-side .player-name { max-width: 100%; }
+.teaser-side .logo, .teaser-side .logo-fallback { width: 36px; height: 36px; font-size: 1rem; }
+.teaser-vs { font-weight: 800; color: var(--accent); font-size: 1.1rem; }
+.pill-locked { opacity: 0.45; cursor: default; border-style: dashed; }
+.bump .bump-line { transition: opacity 120ms var(--ease); }
+.bump .bump-line polyline { stroke: currentColor; }
+.bump .bump-line circle { fill: currentColor; }
+.bump:hover .bump-line { opacity: 0.18; }
+.bump .bump-line:hover, .bump .bump-line:focus-visible { opacity: 1; }
+.bump .bump-line:hover text { font-weight: 700; }
+@media (max-width: 600px) { .highlight { grid-template-columns: 1fr 90px; } .banner { padding: var(--space-3); } }

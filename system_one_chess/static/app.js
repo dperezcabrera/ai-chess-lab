@@ -695,7 +695,7 @@ async function loadStandings() {
 
 const compactTokens = (n) => (n < 1000 ? String(n) : n < 10000 ? `${(n / 1000).toFixed(1)}k` : n < 1000000 ? `${Math.round(n / 1000)}k` : `${(n / 1000000).toFixed(1)}M`);
 const compactTime = (seconds) => (seconds < 60 ? `${Math.round(seconds)}s` : seconds < 3600 ? `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s` : `${Math.floor(seconds / 3600)}h ${Math.round((seconds % 3600) / 60)}m`);
-const spendCells = (row, withTime = true) => [compactTokens(row.input_tokens + row.output_tokens), ...(withTime ? [compactTime(row.seconds)] : []), `$${row.cost_usd.toFixed(4)}`];
+const spendCells = (row, withTime = true) => (row.id === 'human' ? Array(withTime ? 3 : 2).fill('-') : [compactTokens(row.input_tokens + row.output_tokens), ...(withTime ? [compactTime(row.seconds)] : []), `$${row.cost_usd.toFixed(4)}`]);
 
 function renderStandings(rows) {
   const body = $('standings');
@@ -787,7 +787,7 @@ function renderStandingsDialog(view) {
     cell.className = 'col-text';
     cell.append(playerNode(row));
     const half = (n) => (n % 1 ? n.toFixed(1) : n);
-    const values = [row.games, row.wins, row.draws, row.losses, half(row.points), half(row.buchholz_cut1), half(row.buchholz), half(row.buchholz_cut2), half(row.sonneborn_berger), row.calls, `${compactTokens(row.input_tokens)} / ${compactTokens(row.output_tokens)}`, compactTime(row.seconds), row.forfeits ? `${row.illegal} (${row.forfeits} lost)` : row.illegal, `$${row.cost_usd.toFixed(4)}`];
+    const values = [row.games, row.wins, row.draws, row.losses, half(row.points), half(row.buchholz_cut1), half(row.buchholz), half(row.buchholz_cut2), half(row.sonneborn_berger), ...(row.id === 'human' ? Array(5).fill('-') : [row.calls, `${compactTokens(row.input_tokens)} / ${compactTokens(row.output_tokens)}`, compactTime(row.seconds), row.forfeits ? `${row.illegal} (${row.forfeits} lost)` : row.illegal, `$${row.cost_usd.toFixed(4)}`])];
     for (const value of values) Object.assign(tr.insertCell(), { className: 'col-num', textContent: value });
   }
 }
@@ -928,7 +928,7 @@ function renderRoundNav(view) {
   const boards = round.pairings;
   const finished = boards.filter((b) => b.result);
   const decisive = finished.filter((b) => b.result !== '1/2-1/2');
-  const seconds = boards.reduce((sum, b) => sum + b.clock.white + b.clock.black, 0);
+  const seconds = boards.reduce((sum, b) => sum + ['white', 'black'].reduce((own, c) => own + (b[c]?.id === 'human' ? 0 : b.clock[c]), 0), 0);
   const cost = boards.reduce((sum, b) => sum + (b.cost || 0), 0);
   const parts = [`${boards.length} board${boards.length === 1 ? '' : 's'}`, `${finished.length} finished`, `${decisive.length} decisive`];
   if (round.bye) parts.push(`bye ${round.bye.name}`);

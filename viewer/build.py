@@ -6,6 +6,11 @@ the data split so that the browser only fetches what it shows:
     data/tournaments.json            the list of tournaments
     data/<id>/tournament.json        players, standings, tie-breaks, rounds and a summary line per game
     data/<id>/games/r<R>-b<B>.json   one game: every ply with its position, time, tokens, cost, call and evaluation
+
+`--rounds N` publishes a tournament as it stood after round N, for releasing it round by round: the standings, the
+rank history and the highlights are worked out from those rounds alone, the games of later rounds are removed from
+the output, and the pairings of round N+1 are shown as a teaser. The human player's time, tokens and cost are never
+published. Engine evaluations are kept in viewer/cache, outside the output.
     data/<id>/tournament.pgn         every game in PGN
     logos/<key>.png                  the players' logos, downloaded once
 
@@ -36,6 +41,7 @@ import httpx
 
 ROOT = Path(__file__).resolve().parent.parent
 SITE = Path(__file__).resolve().parent / "site"
+CACHE = Path(__file__).resolve().parent / "cache"
 VENDOR = ROOT / "system_one_chess" / "static" / "vendor"
 MODELS_FILE = ROOT / "system_one_chess" / "models.json"
 SYSTEM_ONE = {"jev": "Jev", "laya": "Laya", "kev": "Kev"} | {
@@ -188,7 +194,11 @@ def judge(plies: list[dict], evals: list[dict]) -> None:
             ply["judgement"] = "best"
 
 
+HIDDEN = {"seconds": None, "input_tokens": None, "output_tokens": None, "cost_usd": None, "at": None, "call": {}}
+
+
 def build_game(entry: dict, round_number: int, board_number: int, previous: dict | None, engines: Engines | None):
+    """One game with every ply. The human's time, tokens and cost are left out: only the models' are published."""
     game = entry["game"]
     records = {m["ply"]: m for m in game.get("moves", [])}
     board = chess.Board()
@@ -232,6 +242,8 @@ def build_game(entry: dict, round_number: int, board_number: int, previous: dict
                 },
             }
         )
+        if plies[-1]["player"] == "human":
+            plies[-1].update(HIDDEN)
     evals = None
     depth = None
     reusable = previous and previous.get("moves_uci") == game["moves_uci"] and previous.get("evals")
@@ -256,20 +268,27 @@ def build_game(entry: dict, round_number: int, board_number: int, previous: dict
         "depth": depth,
         "illegal": game.get("illegal", {}),
         "pardons": game.get("pardons", 0),
-        "usage": game.get("usage_by_colour", {}),
+        "usage": {c: u for c, u in game.get("usage_by_colour", {}).items() if entry[c] != "human"},
         "pgn": entry.get("pgn", ""),
     }
 
 
+def total(values) -> float | None:
+    """The sum of the known values, None when none is known (the human's time and cost)."""
+    known = [v for v in values if v is not None]
+    return sum(known) if known else None
+
+
 def summarize_game(game: dict, file: str) -> dict:
-    usage = game["usage"]
     sides = {}
     for colour in ("white", "black"):
         mine = [p for p in game["plies"] if p["colour"] == colour]
         judged = [p for p in mine if "accuracy" in p]
+        seconds = total(p["seconds"] for p in mine)
+        cost = game["usage"].get(colour, {}).get("cost_usd") if game[colour] != "human" else None
         sides[colour] = {
-            "seconds": round(sum(p["seconds"] for p in mine), 1),
-            "cost_usd": round(usage.get(colour, {}).get("cost_usd", 0.0), 6),
+            "seconds": round(seconds, 1) if seconds is not None else None,
+            "cost_usd": round(cost, 6) if cost is not None else None,
             "accuracy": round(sum(p["accuracy"] for p in judged) / len(judged), 1) if judged else None,
             "blunders": sum(p.get("judgement") == "blunder" for p in mine),
             "mistakes": sum(p.get("judgement") == "mistake" for p in mine),
@@ -289,38 +308,62 @@ def summarize_game(game: dict, file: str) -> dict:
     }
 
 
-def standings(data: dict, games: list[dict], human: str, logos: dict[str, str]) -> list[dict]:
-    rows_saved = data["standings"]["rows"]
-    points = {pid: row["points"] for pid, row in rows_saved.items()}
-    rows = []
-    for pid, row in rows_saved.items():
-        faced = sorted(points.get(o, 0.0) for o in data["opponents"].get(pid, []))
+def standings(participants: list[str], rounds: list[dict], human: str, logos: dict[str, str]) -> list[dict]:
+    """The table after the given rounds, worked out from their games alone, with the app's tie-breaks: Buchholz
+    Cut 1, Buchholz, Buchholz Cut 2, Sonneborn-Berger, wins. A bye is a point and adds no opponent."""
+    rows = {
+        pid: {"games": 0, "wins": 0, "draws": 0, "losses": 0, "points": 0.0, "byes": 0, "forfeits": 0, "illegal": 0}
+        for pid in participants
+    }
+    opponents: dict[str, list[str]] = {pid: [] for pid in participants}
+    scores: dict[str, list[tuple[str, float]]] = {pid: [] for pid in participants}
+    games = []
+    for round_ in rounds:
+        if round_["bye"]:
+            rows[round_["bye"]]["points"] += 1
+            rows[round_["bye"]]["byes"] += 1
+        for game in round_["full"]:
+            if not game["result"]:
+                continue
+            games.append(game)
+            white_score = {"1-0": 1.0, "0-1": 0.0}.get(game["result"], 0.5)
+            for colour, pid, other, earned in (
+                ("white", game["white"], game["black"], white_score),
+                ("black", game["black"], game["white"], 1 - white_score),
+            ):
+                row = rows[pid]
+                row["games"] += 1
+                row["points"] += earned
+                row["wins" if earned == 1 else "losses" if earned == 0 else "draws"] += 1
+                row["forfeits"] += int(earned == 0 and game["termination"] == "illegal moves")
+                row["illegal"] += int(game["illegal"].get(colour, 0) or 0)
+                opponents[pid].append(other)
+                scores[pid].append((other, earned))
+    points = {pid: row["points"] for pid, row in rows.items()}
+    table = []
+    for pid, row in rows.items():
+        faced = sorted(points[o] for o in opponents[pid])
         mine = [p for g in games for p in g["plies"] if p["player"] == pid]
         judged = [p for p in mine if "accuracy" in p]
         moves = len(mine)
-        rows.append(
-            {
+        seconds = total(p["seconds"] for p in mine)
+        cost = total(p["cost_usd"] for p in mine)
+        table.append(
+            row
+            | {
                 "id": pid,
                 "name": player_name(pid, human),
                 "logo": logos.get(logo_key(pid), ""),
-                "games": row["games"],
-                "wins": row["wins"],
-                "draws": row["draws"],
-                "losses": row["losses"],
-                "points": row["points"],
-                "byes": row.get("byes", 0),
-                "forfeits": row.get("forfeits", 0),
-                "illegal": row.get("illegal", 0),
                 "buchholz_cut1": sum(faced[1:]) if faced else 0.0,
                 "buchholz": sum(faced),
                 "buchholz_cut2": sum(faced[2:]) if len(faced) > 1 else 0.0,
-                "sonneborn_berger": sum(points.get(o, 0.0) * e for o, e in data["scores"].get(pid, [])),
+                "sonneborn_berger": sum(points[o] * e for o, e in scores[pid]),
                 "moves": moves,
-                "seconds": round(sum(p["seconds"] for p in mine), 1),
-                "seconds_per_move": round(sum(p["seconds"] for p in mine) / moves, 2) if moves else None,
-                "input_tokens": row.get("input_tokens", 0),
-                "output_tokens": row.get("output_tokens", 0),
-                "cost_usd": round(row.get("cost_usd", 0.0), 6),
+                "seconds": round(seconds, 1) if seconds is not None else None,
+                "seconds_per_move": round(seconds / moves, 2) if seconds is not None and moves else None,
+                "input_tokens": total(p["input_tokens"] for p in mine),
+                "output_tokens": total(p["output_tokens"] for p in mine),
+                "cost_usd": round(cost, 6) if cost is not None else None,
                 "accuracy": round(sum(p["accuracy"] for p in judged) / len(judged), 1) if judged else None,
                 "acpl": round(sum(min(p["loss"], MATE_CP) for p in judged) / len(judged), 1) if judged else None,
                 "best_rate": round(sum(p.get("judgement") == "best" for p in judged) / len(judged), 3)
@@ -331,7 +374,7 @@ def standings(data: dict, games: list[dict], human: str, logos: dict[str, str]) 
                 "blunders": sum(p.get("judgement") == "blunder" for p in mine),
             }
         )
-    rows.sort(
+    table.sort(
         key=lambda r: (
             -r["points"],
             -r["buchholz_cut1"],
@@ -339,27 +382,97 @@ def standings(data: dict, games: list[dict], human: str, logos: dict[str, str]) 
             -r["buchholz_cut2"],
             -r["sonneborn_berger"],
             -r["wins"],
-            r["cost_usd"],
+            r["cost_usd"] or 0.0,
             r["name"],
         )
     )
-    for rank, row in enumerate(rows, 1):
+    for rank, row in enumerate(table, 1):
         row["rank"] = rank
-    return rows
+    return table
 
 
-def build_tournament(path: Path, out: Path, human: str, engines: Engines | None, jobs: int) -> dict:
+def moment(game: dict, file: str, ply: dict | None, **extra) -> dict:
+    """A highlight: which game, which move (0 for the whole game) and the position to show."""
+    return {
+        "file": file,
+        "white": game["white"],
+        "black": game["black"],
+        "result": game["result"],
+        "ply": ply["ply"] if ply else len(game["plies"]),
+        "fen": ply["fen"] if ply else game["fen"],
+        "last": [ply["uci"][:2], ply["uci"][2:4]] if ply else None,
+        "san": ply["san"] if ply else None,
+        "player": ply["player"] if ply else None,
+    } | extra
+
+
+def highlights(games: list[tuple[dict, str]], ranks_before: dict[str, int] | None) -> dict:
+    """What a round is remembered for: its upset, its best-played game, its worst move, the longest and the
+    dearest thought (models only), and its quickest win."""
+    found: dict = {}
+    decisive = [(g, f) for g, f in games if g["result"] in ("1-0", "0-1")]
+    if ranks_before:
+        upsets = []
+        for g, f in decisive:
+            winner, loser = (g["white"], g["black"]) if g["result"] == "1-0" else (g["black"], g["white"])
+            gap = ranks_before[winner] - ranks_before[loser]
+            if gap > 0:
+                upsets.append((gap, g, f, winner, loser))
+        if upsets:
+            gap, g, f, winner, loser = max(upsets, key=lambda u: u[0])
+            found["upset"] = moment(g, f, None, winner=winner, loser=loser, gap=gap)
+    rated = []
+    for g, f in games:
+        accs = [
+            sum(p["accuracy"] for p in side) / len(side)
+            for side in ([p for p in g["plies"] if p["colour"] == c and "accuracy" in p] for c in ("white", "black"))
+            if side
+        ]
+        if len(accs) == 2 and len(g["plies"]) >= 20:
+            rated.append((min(accs), g, f, accs))
+    if rated:
+        _, g, f, accs = max(rated, key=lambda r: r[0])
+        found["best_game"] = moment(g, f, None, accuracy=[round(a, 1) for a in accs])
+    plies = [(p, g, f) for g, f in games for p in g["plies"]]
+    judged = [x for x in plies if "loss" in x[0]]
+    if judged:
+        p, g, f = max(judged, key=lambda x: min(x[0]["loss"], MATE_CP))
+        if p["loss"] >= 100:
+            found["blunder"] = moment(
+                g, f, p, loss=min(p["loss"], MATE_CP), best=p.get("best"), judgement=p["judgement"]
+            )
+    timed = [x for x in plies if x[0]["seconds"] is not None]
+    if timed:
+        p, g, f = max(timed, key=lambda x: x[0]["seconds"])
+        found["longest_think"] = moment(g, f, p, seconds=p["seconds"])
+    priced = [x for x in plies if x[0]["cost_usd"]]
+    if priced:
+        p, g, f = max(priced, key=lambda x: x[0]["cost_usd"])
+        found["dearest_move"] = moment(g, f, p, cost_usd=p["cost_usd"], output_tokens=p["output_tokens"])
+    if decisive:
+        g, f = min(decisive, key=lambda x: len(x[0]["plies"]))
+        found["quickest_win"] = moment(g, f, None, moves=(len(g["plies"]) + 1) // 2)
+    return found
+
+
+def build_tournament(path: Path, out: Path, human: str, engines: Engines | None, jobs: int, released: int | None):
     data = json.loads(path.read_text())
     tid = data["id"]
+    released = min(released or len(data["rounds"]), len(data["rounds"]))
     folder = out / "data" / tid
     (folder / "games").mkdir(parents=True, exist_ok=True)
+    cache = CACHE / tid
+    cache.mkdir(parents=True, exist_ok=True)
     logos = download_logos(data["participants"], out)
     tasks = []
-    for round_number, round_ in enumerate(data["rounds"], 1):
+    for round_number, round_ in enumerate(data["rounds"][:released], 1):
         for board_number, entry in enumerate(round_["pairings"], 1):
             file = f"games/r{round_number}-b{board_number}.json"
-            target = folder / file
-            previous = json.loads(target.read_text()) if target.exists() else None
+            previous = None
+            for candidate in (cache / Path(file).name, folder / file):
+                if candidate.exists():
+                    previous = json.loads(candidate.read_text())
+                    break
             tasks.append((round_number, board_number, entry, previous, file))
     done = [0]
 
@@ -367,6 +480,9 @@ def build_tournament(path: Path, out: Path, human: str, engines: Engines | None,
         round_number, board_number, entry, previous, file = task
         game = build_game(entry, round_number, board_number, previous, engines)
         (folder / file).write_text(json.dumps(game, separators=(",", ":")))
+        if game["evals"]:
+            kept = {"moves_uci": game["moves_uci"], "evals": game["evals"], "depth": game["depth"]}
+            (cache / Path(file).name).write_text(json.dumps(kept, separators=(",", ":")))
         done[0] += 1
         print(f"\r  {tid}: {done[0]}/{len(tasks)} games", end="", file=sys.stderr, flush=True)
         return game, file
@@ -374,11 +490,39 @@ def build_tournament(path: Path, out: Path, human: str, engines: Engines | None,
     with ThreadPoolExecutor(max_workers=jobs) as pool:
         results = list(pool.map(work, tasks))
     print(file=sys.stderr)
+    published = {f for _, f in results}
+    for stale in (folder / "games").glob("*.json"):
+        if f"games/{stale.name}" not in published:
+            stale.unlink()
     games = [game for game, _ in results]
+    full_rounds = [
+        {"number": n, "bye": round_["bye"], "full": [g for g in games if g["round"] == n]}
+        for n, round_ in enumerate(data["rounds"][:released], 1)
+    ]
+    history = [standings(data["participants"], full_rounds[:k], human, logos) for k in range(1, released + 1)]
+    ranks = {
+        pid: [next(r["rank"] for r in table if r["id"] == pid) for table in history] for pid in data["participants"]
+    }
     rounds = []
-    for round_number, round_ in enumerate(data["rounds"], 1):
-        mine = [summarize_game(g, f) for g, f in results if g["round"] == round_number]
-        rounds.append({"number": round_number, "bye": round_["bye"], "games": mine})
+    for n, round_ in enumerate(full_rounds, 1):
+        mine = [(g, f) for g, f in results if g["round"] == n]
+        before = {pid: ranks[pid][n - 2] for pid in ranks} if n > 1 else None
+        rounds.append(
+            {
+                "number": n,
+                "bye": round_["bye"],
+                "games": [summarize_game(g, f) for g, f in mine],
+                "highlights": highlights(mine, before),
+            }
+        )
+    teaser = None
+    if released < len(data["rounds"]):
+        upcoming = data["rounds"][released]
+        teaser = {
+            "number": released + 1,
+            "bye": upcoming["bye"],
+            "pairings": [{"white": e["white"], "black": e["black"]} for e in upcoming["pairings"]],
+        }
     models = data.get("models", {})
     players = {
         pid: {
@@ -387,7 +531,7 @@ def build_tournament(path: Path, out: Path, human: str, engines: Engines | None,
             "kind": "human" if pid == "human" else ("system_one" if pid in SYSTEM_ONE else "llm"),
             "upstream": pid.removeprefix("llm:")
             if pid.startswith("llm:")
-            else models.get(pid, {}).get("upstream", pid),
+            else models.get(pid, {}).get("upstream", "" if pid == "human" else pid),
             "tier": models.get(pid, {}).get("tier", ""),
             "pricing": models.get(pid, {}).get("pricing"),
             "reasoning": models.get(pid, {}).get("reasoning"),
@@ -395,29 +539,29 @@ def build_tournament(path: Path, out: Path, human: str, engines: Engines | None,
         for pid in data["participants"]
     }
     all_plies = [p for g in games for p in g["plies"]]
-    last_at = max((p["at"] for p in all_plies if p.get("at")), default=None)
     summary = {
         "id": tid,
         "title": f"Swiss tournament, {len(data['participants'])} players, {data['rounds_total']} rounds",
         "started_at": data["started_at"],
-        "last_move_at": last_at,
-        "elapsed": data.get("elapsed"),
         "rounds_total": data["rounds_total"],
+        "released": released,
         "time_limit": data.get("time_limit"),
         "depth": engines.depth if engines else next((g["depth"] for g in games if g.get("depth")), None),
         "totals": {
             "games": len(games),
             "moves": len(all_plies),
-            "cost_usd": round(sum(p["cost_usd"] or 0 for p in all_plies), 4),
-            "seconds": round(sum(p["seconds"] for p in all_plies), 1),
-            "input_tokens": sum(p["input_tokens"] or 0 for p in all_plies),
-            "output_tokens": sum(p["output_tokens"] or 0 for p in all_plies),
+            "cost_usd": round(total(p["cost_usd"] for p in all_plies) or 0.0, 4),
+            "seconds": round(total(p["seconds"] for p in all_plies) or 0.0, 1),
+            "input_tokens": total(p["input_tokens"] for p in all_plies) or 0,
+            "output_tokens": total(p["output_tokens"] for p in all_plies) or 0,
             "decisive": sum(g["result"] in ("1-0", "0-1") for g in games),
             "draws": sum(g["result"] == "1/2-1/2" for g in games),
         },
         "players": players,
-        "standings": standings(data, games, human, logos),
+        "standings": history[-1] if history else [],
+        "ranks": ranks,
         "rounds": rounds,
+        "next": teaser,
         "built_at": datetime.now(UTC).isoformat(timespec="seconds"),
     }
     (folder / "tournament.json").write_text(json.dumps(summary, separators=(",", ":")))
@@ -427,7 +571,8 @@ def build_tournament(path: Path, out: Path, human: str, engines: Engines | None,
         "title": summary["title"],
         "started_at": summary["started_at"],
         "players": len(players),
-        "rounds": len(rounds),
+        "rounds": released,
+        "rounds_total": data["rounds_total"],
         "games": len(games),
         "leader": summary["standings"][0]["name"] if summary["standings"] else None,
     }
@@ -438,6 +583,7 @@ def main() -> None:
     parser.add_argument("files", type=Path, nargs="+", help="saved tournament files")
     parser.add_argument("--out", type=Path, default=Path(__file__).resolve().parent / "dist")
     parser.add_argument("--human-name", default="Human", help="how the human player is shown")
+    parser.add_argument("--rounds", type=int, help="publish only the first N rounds, as they were after round N")
     parser.add_argument("--depth", type=int, default=14, help="Stockfish depth per position")
     parser.add_argument("--no-engine", action="store_true", help="skip Stockfish, keep evaluations already built")
     parser.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) - 1), help="games analysed at once")
@@ -460,7 +606,7 @@ def main() -> None:
         index_path = out / "data" / "tournaments.json"
         listed = {t["id"]: t for t in json.loads(index_path.read_text())} if index_path.exists() else {}
         for path in args.files:
-            entry = build_tournament(path, out, args.human_name, engines, args.jobs)
+            entry = build_tournament(path, out, args.human_name, engines, args.jobs, args.rounds)
             listed[entry["id"]] = entry
         index_path.write_text(json.dumps(sorted(listed.values(), key=lambda t: -t["started_at"]), indent=1))
     finally:

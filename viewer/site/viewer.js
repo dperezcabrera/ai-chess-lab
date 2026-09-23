@@ -39,14 +39,16 @@ function svg(tag, attrs = {}, ...children) {
   return node;
 }
 
-const money = (v) => (v === null || v === undefined ? '' : v === 0 ? '$0' : v < 0.01 ? `$${v.toFixed(4)}` : v < 10 ? `$${v.toFixed(2)}` : `$${v.toFixed(1)}`);
+const DASH = '-';
+const known = (values) => { const k = values.filter((v) => v !== null && v !== undefined); return k.length ? k.reduce((a, b) => a + b, 0) : null; };
+const money = (v) => (v === null || v === undefined ? DASH : v === 0 ? '$0' : v < 0.01 ? `$${v.toFixed(4)}` : v < 10 ? `$${v.toFixed(2)}` : `$${v.toFixed(1)}`);
 const secs = (s) => {
-  if (s === null || s === undefined) return '';
+  if (s === null || s === undefined) return DASH;
   if (s < 60) return `${s < 10 ? s.toFixed(1) : Math.round(s)}s`;
   if (s < 3600) return `${Math.floor(s / 60)}m ${String(Math.round(s % 60)).padStart(2, '0')}s`;
   return `${Math.floor(s / 3600)}h ${String(Math.round((s % 3600) / 60)).padStart(2, '0')}m`;
 };
-const tokens = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n ?? ''));
+const tokens = (n) => (n === null || n === undefined ? DASH : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n ?? ''));
 const half = (p) => (p % 1 ? `${Math.floor(p) || ''}½` : String(p));
 const winChances = (cp) => 2 / (1 + Math.exp(-0.00368208 * Math.max(-1000, Math.min(1000, cp)))) - 1;
 const evalText = (e) => (!e ? '' : e.mate !== null && e.mate !== undefined ? (e.mate === 0 ? '#' : `#${e.mate}`) : `${e.cp > 0 ? '+' : ''}${(e.cp / 100).toFixed(1)}`);
@@ -115,15 +117,19 @@ function scatter(rows, { x, y, xLog, xLabel, yLabel, fmtX, fmtY, href }) {
     root.append(svg('line', { class: 'gridline', x1: L, x2: W - R, y1: sy(t), y2: sy(t) }), svg('text', { x: L - 6, y: sy(t) + 4, 'text-anchor': 'end' }, fmtY(t)));
   }
   root.append(svg('text', { x: (L + W - R) / 2, y: H - 6, 'text-anchor': 'middle' }, xLabel), svg('text', { x: 12, y: (T + H - B) / 2, 'text-anchor': 'middle', transform: `rotate(-90 12 ${(T + H - B) / 2})` }, yLabel));
+  const placed = [];
   for (const r of points) {
     const cx = sx(x(r)), cy = sy(y(r));
+    const box = [cx + 15, cy - 8, cx + 15 + r.name.length * 6.2, cy + 6];
+    const free = box[2] < W && !placed.some((o) => box[0] < o[2] && o[0] < box[2] && box[1] < o[3] && o[1] < box[3]);
+    if (free) placed.push(box);
     const g = svg('a', { href: href?.(r), 'aria-label': `${r.name}: ${fmtY(y(r))}, ${fmtX(x(r))}` });
     const clip = `c-${Math.random().toString(36).slice(2)}`;
     g.append(svg('defs', {}, svg('clipPath', { id: clip }, svg('circle', { cx, cy, r: 11 }))));
     g.append(svg('circle', { cx, cy, r: 12, fill: 'var(--surface)', stroke: 'var(--accent)', 'stroke-width': 1.5 }));
     if (r.logo) g.append(svg('image', { href: r.logo, x: cx - 11, y: cy - 11, width: 22, height: 22, 'clip-path': `url(#${clip})` }));
     else g.append(svg('text', { x: cx, y: cy + 4, 'text-anchor': 'middle', class: 'label' }, r.name[0]));
-    g.append(svg('text', { x: cx + 15, y: cy + 4, class: 'label' }, r.name));
+    if (free) g.append(svg('text', { x: cx + 15, y: cy + 4, class: 'label' }, r.name));
     tip(g, `${r.name}\n${yLabel}: ${fmtY(y(r))}\n${xLabel}: ${fmtX(x(r))}`);
     root.append(g);
   }
@@ -207,7 +213,7 @@ function gameCard(g, players, gameHref, observe, perspective) {
   observe(boardNode);
   const blunders = mine ? g.sides[mine].blunders : g.sides.white.blunders + g.sides.black.blunders;
   const outcome = mine && scoreFor(g, mine);
-  const cost = mine ? g.sides[mine].cost_usd : g.sides.white.cost_usd + g.sides.black.cost_usd;
+  const cost = mine ? g.sides[mine].cost_usd : known([g.sides.white.cost_usd, g.sides.black.cost_usd]);
   return el('a', { class: `game-card${outcome ? ` outcome-${outcome}` : ''}`, href: gameHref(g.file), 'aria-label': `Round ${g.round}, board ${g.board}: ${players[g.white].name} against ${players[g.black].name}, ${g.result}` },
     mine && el('div', { class: 'meta' }, el('strong', {}, `Round ${g.round}`), el('span', {}, `${mine === 'white' ? 'White' : 'Black'}${outcome ? ` · ${{ w: 'won', d: 'drew', l: 'lost' }[outcome]}` : ''}`)),
     side(top), boardNode, side(bottom),
@@ -265,7 +271,7 @@ async function renderPlayer(id, pid) {
     row.accuracy !== null && [`${row.accuracy}%`, `accuracy, ${row.acpl} average centipawn loss`],
     row.accuracy !== null && [`${row.blunders} / ${row.mistakes} / ${row.inaccuracies}`, 'blunders / mistakes / inaccuracies'],
     [row.seconds_per_move !== null ? `${row.seconds_per_move}s` : '', 'thinking per move'],
-    [money(row.cost_usd), `${tokens(row.input_tokens + row.output_tokens)} tokens`],
+    [money(row.cost_usd), `${tokens(known([row.input_tokens, row.output_tokens]))} tokens`],
   ].filter(Boolean);
   const boards = lazyBoards();
   const cards = [];
@@ -284,6 +290,98 @@ async function renderPlayer(id, pid) {
   cleanup = boards.disconnect;
 }
 
+/* ---------- Series: highlights, teaser, ranks, rounds ---------- */
+
+const gameLink = (id, file, ply) => `#/t/${id}/g/${file.replace('games/', '').replace('.json', '')}${ply !== undefined ? `/${ply}` : ''}`;
+const roundHref = (id, n) => `#/t/${id}/r/${n}`;
+const TRIANGLE = { up: 'M12 6l7 10H5z', down: 'M12 18L5 8h14z' };
+
+function rankDelta(t, pid, round) {
+  const ranks = t.ranks?.[pid];
+  if (!ranks || round < 2) return '';
+  const change = ranks[round - 2] - ranks[round - 1];
+  if (!change) return el('span', { class: 'delta muted', title: 'same place as the round before' }, '=');
+  const up = change > 0;
+  return el('span', { class: `delta ${up ? 'up' : 'down'}`, title: `${up ? 'up' : 'down'} ${Math.abs(change)} since round ${round - 1}` },
+    svg('svg', { viewBox: '0 0 24 24', fill: 'currentColor', 'aria-hidden': 'true' }, svg('path', { d: TRIANGLE[up ? 'up' : 'down'] })), Math.abs(change));
+}
+
+function highlightCards(t, id, round, players, observe) {
+  const h = round.highlights || {};
+  const name = (pid) => players[pid]?.name || pid;
+  const rankBefore = (pid) => t.ranks?.[pid]?.[round.number - 2];
+  const items = [
+    h.blunder && ['Blunder of the round', h.blunder.loss >= 1000 ? 'Game-losing' : `${(h.blunder.loss / 100).toFixed(1)} pawns`, `${name(h.blunder.player)} played ${h.blunder.san}${h.blunder.best ? `. Stockfish wanted ${h.blunder.best}` : ''}.`, h.blunder, 'blunder'],
+    h.upset && ['Upset', `${h.upset.gap} place${h.upset.gap > 1 ? 's' : ''}`, `${name(h.upset.winner)}, ranked ${rankBefore(h.upset.winner)}, beat ${name(h.upset.loser)}, ranked ${rankBefore(h.upset.loser)}.`, h.upset, 'win'],
+    h.best_game && ['Best-played game', `${Math.min(...h.best_game.accuracy)}%`, `${name(h.best_game.white)} ${h.best_game.accuracy[0]}% against ${name(h.best_game.black)} ${h.best_game.accuracy[1]}%, ${h.best_game.result}.`, h.best_game, 'best'],
+    h.quickest_win && ['Quickest win', `${h.quickest_win.moves} moves`, `${name(h.quickest_win.result === '1-0' ? h.quickest_win.white : h.quickest_win.black)} beat ${name(h.quickest_win.result === '1-0' ? h.quickest_win.black : h.quickest_win.white)}.`, h.quickest_win, 'win'],
+    h.longest_think && ['Longest thought', secs(h.longest_think.seconds), `${name(h.longest_think.player)} before playing ${h.longest_think.san}.`, h.longest_think, 'accent'],
+    h.dearest_move && ['Most expensive move', money(h.dearest_move.cost_usd), `${name(h.dearest_move.player)} on ${h.dearest_move.san}, ${tokens(h.dearest_move.output_tokens)} tokens written.`, h.dearest_move, 'accent'],
+  ].filter(Boolean);
+  if (!items.length) return el('p', { class: 'muted' }, 'Nothing stood out in this round yet.');
+  return el('div', { class: 'highlights' }, items.map(([label, figure, text, m, tone]) => {
+    const board = el('div', { class: 'mini-board', 'data-fen': m.fen, 'data-last': m.last ? m.last.join(',') : '' });
+    observe(board);
+    return el('a', { class: `highlight tone-${tone}`, href: gameLink(id, m.file, m.ply) },
+      el('div', { class: 'highlight-text' }, el('div', { class: 'highlight-label' }, label), el('div', { class: 'highlight-figure' }, figure), el('p', {}, text)), board);
+  }));
+}
+
+function teaser(t, players) {
+  if (!t.next) return '';
+  return el('section', { id: 'next' }, el('h2', {}, `Coming next: round ${t.next.number}`),
+    el('div', { class: 'teaser-grid' }, t.next.pairings.map((pair) => el('div', { class: 'teaser' },
+      el('div', { class: 'teaser-side' }, logo(players[pair.white]), el('span', { class: 'player-name' }, players[pair.white].name), el('span', { class: 'muted' }, `No. ${t.standings.find((r) => r.id === pair.white)?.rank}`)),
+      el('div', { class: 'teaser-vs', 'aria-hidden': 'true' }, 'vs'),
+      el('div', { class: 'teaser-side' }, logo(players[pair.black]), el('span', { class: 'player-name' }, players[pair.black].name), el('span', { class: 'muted' }, `No. ${t.standings.find((r) => r.id === pair.black)?.rank}`))))),
+    t.next.bye ? el('p', { class: 'muted' }, `Bye: ${players[t.next.bye].name}.`) : '');
+}
+
+function bumpChart(t, id) {
+  const rounds = t.rounds.length;
+  const count = t.standings.length;
+  const W = 1000, H = 40 + count * 26, L = 40, R = 190, T = 20, B = 24;
+  const sx = (r) => L + (rounds > 1 ? ((r - 1) / (rounds - 1)) * (W - L - R) : (W - L - R) / 2);
+  const sy = (rank) => T + ((rank - 1) / Math.max(1, count - 1)) * (H - T - B);
+  const root = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'chart bump', role: 'img', 'aria-label': 'Place of every player after each round' });
+  for (let r = 1; r <= rounds; r++) root.append(svg('line', { class: 'gridline', x1: sx(r), x2: sx(r), y1: T - 8, y2: H - B + 4 }), svg('text', { x: sx(r), y: H - 4, 'text-anchor': 'middle' }, `R${r}`));
+  t.standings.forEach((row, index) => (row.hue = Math.round((index * 360) / count + 20) % 360));
+  for (const row of [...t.standings].reverse()) {
+    const ranks = t.ranks[row.id];
+    const g = svg('a', { href: playerHref(id, row.id), class: 'bump-line', style: `color:hsl(${row.hue} 55% 52%)`, 'aria-label': `${row.name}: places ${ranks.join(', ')}` });
+    g.append(svg('polyline', { points: ranks.map((rank, i) => `${sx(i + 1)},${sy(rank)}`).join(' '), fill: 'none', 'stroke-width': 3, 'stroke-linejoin': 'round' }));
+    ranks.forEach((rank, i) => g.append(svg('circle', { cx: sx(i + 1), cy: sy(rank), r: 4.5 })));
+    const y = sy(ranks[ranks.length - 1]);
+    if (row.logo) g.append(svg('image', { href: row.logo, x: sx(rounds) + 12, y: y - 9, width: 18, height: 18 }));
+    g.append(svg('text', { x: sx(rounds) + 36, y: y + 4, class: 'label' }, `${row.rank}. ${row.name}`));
+    tip(g, `${row.name}\nplaces by round: ${ranks.join(', ')}`);
+    root.append(g);
+  }
+  return root;
+}
+
+async function renderRound(id, number) {
+  const t = await load(`data/${id}/tournament.json`);
+  const players = Object.fromEntries(Object.entries(t.players).map(([key, p]) => [key, { id: key, ...p }]));
+  const round = t.rounds.find((r) => r.number === number);
+  if (!round) throw new Error(`round ${number} has not been released`);
+  document.title = `Round ${number}: ${t.title}`;
+  setCrumbs([[t.title, `#/t/${id}`], [`Round ${number}`]]);
+  const boards = lazyBoards();
+  const gameHref = (file) => gameLink(id, file);
+  const nav = el('div', { class: 'filters', style: 'margin:0' },
+    number > 1 ? el('a', { class: 'btn', href: roundHref(id, number - 1) }, icon('prev'), `Round ${number - 1}`) : '',
+    number < t.rounds.length ? el('a', { class: 'btn', href: roundHref(id, number + 1) }, `Round ${number + 1}`, icon('next')) : '');
+  const decisive = round.games.filter((g) => g.result === '1-0' || g.result === '0-1').length;
+  app.replaceChildren(
+    el('div', { class: 'game-head' }, el('h1', {}, `Round ${number}`, el('span', { class: 'muted', style: 'font-size:0.95rem;font-weight:400' }, `of ${t.rounds_total} · ${round.games.length} games · ${decisive} decisive`)), nav),
+    el('section', {}, el('h2', {}, 'Highlights'), highlightCards(t, id, round, players, boards.observe)),
+    el('section', {}, el('h2', {}, 'Results'), el('div', { class: 'games-grid' }, round.games.map((g) => gameCard({ ...g, round: number }, players, gameHref, boards.observe))),
+      round.bye ? el('p', { class: 'muted' }, `Bye: ${players[round.bye].name}.`) : ''),
+    number === t.rounds.length ? teaser(t, players) : '');
+  cleanup = boards.disconnect;
+}
+
 /* ---------- Tournament ---------- */
 
 const filters = { round: 'all', player: 'all', result: 'all', termination: 'all' };
@@ -299,13 +397,13 @@ async function renderTournament(id) {
   const totals = t.totals;
   const hero = el('div', { class: 'hero' },
     [
-      [t.rounds.length + (t.rounds.length < t.rounds_total ? ` of ${t.rounds_total}` : ''), 'rounds'],
+      [`${t.rounds.length} of ${t.rounds_total}`, t.rounds.length < t.rounds_total ? 'rounds played so far' : 'rounds'],
       [totals.games, 'games'],
       [totals.moves.toLocaleString(), 'moves'],
       [`${totals.decisive} / ${totals.draws}`, 'decisive / draws'],
       [money(totals.cost_usd), 'spent on model calls'],
-      [secs(totals.seconds), 'thinking, all players'],
-      [tokens(totals.input_tokens + totals.output_tokens), 'tokens'],
+      [secs(totals.seconds), 'thinking, models only'],
+      [tokens(totals.input_tokens + totals.output_tokens), 'tokens, models only'],
     ].map(([v, l]) => el('div', { class: 'stat' }, el('div', { class: 'stat-value' }, v), el('div', { class: 'stat-label' }, l))));
 
   const goPlayer = el('label', { class: 'field' }, 'See one player', el('select', { onchange: (e) => e.target.value && (location.hash = playerHref(id, e.target.value)) }, el('option', { value: '' }, 'Choose a player'), rows.map((r) => el('option', { value: r.id }, `${r.rank}. ${r.name}`))));
@@ -316,6 +414,7 @@ async function renderTournament(id) {
   const maxPoints = Math.max(...rows.map((r) => r.games), 1);
   const cols = [
     ['#', 'num', (r) => r.rank],
+    ['', 'center', (r) => rankDelta(t, r.id, t.rounds.length)],
     ['Player', '', (r) => el('a', { class: 'player-link', href: playerHref(id, r.id) }, playerTag(r))],
     ['Points', 'num', (r) => el('div', { class: 'points-cell' }, el('div', { class: 'points-bar', 'aria-hidden': 'true' }, el('span', { style: `width:${(r.points / maxPoints) * 100}%` })), el('strong', {}, half(r.points)))],
     ['W D L', 'center', (r) => el('span', { class: 'wdl', title: `${r.wins} won, ${r.draws} drawn, ${r.losses} lost`, 'aria-label': `${r.wins} won, ${r.draws} drawn, ${r.losses} lost` }, [...Array(r.wins)].map(() => el('span', { class: 'w' })), [...Array(r.draws)].map(() => el('span', { class: 'd' })), [...Array(r.losses)].map(() => el('span', { class: 'l' })))],
@@ -330,9 +429,9 @@ async function renderTournament(id) {
       ['?', 'num', (r) => r.mistakes],
       ['??', 'num', (r) => r.blunders],
     ] : []),
-    ['Illegal', 'num', (r) => r.illegal || ''],
-    ['s / move', 'num', (r) => (r.seconds_per_move ?? '')],
-    ['Tokens', 'num', (r) => tokens(r.input_tokens + r.output_tokens)],
+    ['Illegal', 'num', (r) => (r.id === 'human' ? DASH : r.illegal || '')],
+    ['s / move', 'num', (r) => (r.seconds_per_move ?? DASH)],
+    ['Tokens', 'num', (r) => tokens(known([r.input_tokens, r.output_tokens]))],
     ['Cost', 'num', (r) => money(r.cost_usd)],
   ];
   const standings = el('section', { id: 'standings' }, el('h2', {}, 'Standings'),
@@ -412,7 +511,16 @@ async function renderTournament(id) {
   }
   drawGames();
 
-  app.replaceChildren(el('h1', {}, t.title), el('p', { class: 'muted' }, `Started ${new Date(t.started_at * 1000).toLocaleString()}. `, el('a', { href: `data/${id}/tournament.pgn`, download: `${id}.pgn` }, 'Download every game in PGN')), hero, nav, standings, charts, cross, gamesSection);
+  const latest = t.rounds[t.rounds.length - 1];
+  const banner = latest && el('section', { class: 'banner' },
+    el('div', { class: 'banner-head' },
+      el('div', {}, el('div', { class: 'highlight-label' }, t.rounds.length < t.rounds_total ? 'Just released' : 'Final round'), el('h2', {}, `Round ${latest.number} of ${t.rounds_total}`)),
+      el('a', { class: 'btn', href: roundHref(id, latest.number) }, 'Every game of this round', icon('next'))),
+    highlightCards(t, id, latest, players, boards.observe)) || '';
+  const roundChips = el('nav', { class: 'section-nav', 'aria-label': 'Rounds' }, el('span', { class: 'muted' }, 'Rounds:'), t.rounds.map((r) => el('a', { class: 'pill', href: roundHref(id, r.number) }, `R${r.number}`)),
+    Array.from({ length: t.rounds_total - t.rounds.length }, (_, i) => el('span', { class: 'pill pill-locked', 'aria-disabled': 'true', title: 'not released yet' }, `R${t.rounds.length + i + 1}`)));
+  const bump = t.ranks && t.rounds.length > 1 && el('section', { id: 'ranks' }, el('h2', {}, 'Place after each round'), el('div', { class: 'card' }, bumpChart(t, id))) || '';
+  app.replaceChildren(el('h1', {}, t.title), el('p', { class: 'muted' }, `Started ${new Date(t.started_at * 1000).toLocaleString()}. `, el('a', { href: `data/${id}/tournament.pgn`, download: `${id}.pgn` }, 'Download every game in PGN')), roundChips, banner, teaser(t, players), hero, nav, standings, bump, charts, cross, gamesSection);
   cleanup = boards.disconnect;
 }
 
@@ -598,16 +706,17 @@ async function renderGame(id, name) {
 
   function fillBar(b, colour, player) {
     const upTo = game.plies.slice(0, ply).filter((p) => p.colour === colour);
-    const spent = upTo.reduce((s, p) => s + p.seconds, 0);
-    const cost = upTo.reduce((s, p) => s + (p.cost_usd || 0), 0);
+    const spent = known(upTo.map((p) => p.seconds));
+    const cost = known(upTo.map((p) => p.cost_usd));
+    const hidden = game[colour] === 'human';
     const fen = ply ? game.plies[ply - 1].fen : start;
     const diff = material(fen) * (colour === 'white' ? 1 : -1);
     const toMove = fen.split(' ')[1] === colour[0];
     b.node.classList.toggle('to-move', toMove && ply < n);
     b.node.firstChild.replaceWith(el('span', { class: 'player' }, logo(player), el('strong', { class: 'player-name' }, player.name), el('span', { class: 'muted' }, colour === 'white' ? '(White)' : '(Black)'), diff > 0 ? el('span', { class: 'muted' }, `+${diff}`) : ''));
     b.stats.replaceChildren(
-      el('span', { title: 'thinking time so far' }, secs(spent)),
-      cost ? el('span', { title: 'cost so far' }, money(cost)) : '',
+      el('span', { title: 'thinking time so far' }, hidden ? DASH : secs(spent ?? 0)),
+      el('span', { title: 'cost so far' }, hidden ? DASH : money(cost ?? 0)),
       el('span', { title: 'moves' }, `${upTo.length} moves`));
   }
 
@@ -625,6 +734,7 @@ async function renderGame(id, name) {
       p.best && p.best !== p.san && ['Stockfish preferred', p.best],
       p.loss !== undefined && ['Centipawns lost', p.loss],
       p.accuracy !== undefined && ['Move accuracy', `${p.accuracy}%`],
+      p.player === 'human' && ['Tokens and cost', DASH],
       p.input_tokens && ['Tokens in / out', `${p.input_tokens.toLocaleString()} / ${(p.output_tokens || 0).toLocaleString()}`],
       p.cost_usd && ['Cost', money(p.cost_usd)],
       p.call?.reasoning_chars && ['Reasoning', `${p.call.reasoning_chars.toLocaleString()} characters`],
@@ -708,7 +818,7 @@ async function renderGame(id, name) {
     const s = game.plies.filter((p) => p.colour === c);
     const judged = s.filter((p) => p.accuracy !== undefined);
     const count = (k) => s.filter((p) => p.judgement === k).length;
-    return { c, acc: judged.length ? (judged.reduce((a, p) => a + p.accuracy, 0) / judged.length).toFixed(1) : null, best: count('best'), inacc: count('inaccuracy'), mist: count('mistake'), blun: count('blunder'), time: s.reduce((a, p) => a + p.seconds, 0), cost: s.reduce((a, p) => a + (p.cost_usd || 0), 0) };
+    return { c, acc: judged.length ? (judged.reduce((a, p) => a + p.accuracy, 0) / judged.length).toFixed(1) : null, best: count('best'), inacc: count('inaccuracy'), mist: count('mistake'), blun: count('blunder'), time: known(s.map((p) => p.seconds)), cost: game[c] === 'human' ? null : known(s.map((p) => p.cost_usd)) ?? 0 };
   });
   const analysis = el('div', { class: 'card table-wrap' }, el('h3', {}, 'Analysis'), el('table', {},
     el('thead', {}, el('tr', {}, ['Player', 'Accuracy', 'Best', 'Inaccuracies', 'Mistakes', 'Blunders', 'Thinking', 'Cost'].map((h, i) => el('th', { class: i ? 'num' : '', scope: 'col' }, h)))),
@@ -752,6 +862,7 @@ async function route() {
   try {
     if (kind === 't' && sub === 'g') await renderGame(id, name);
     else if (kind === 't' && sub === 'p') await renderPlayer(id, decodeURIComponent(name));
+    else if (kind === 't' && sub === 'r') await renderRound(id, Number(name));
     else if (kind === 't') await renderTournament(id);
     else await renderList();
     if (sub !== 'g') scrollTo(0, 0);
