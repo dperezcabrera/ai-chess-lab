@@ -134,9 +134,11 @@ class Tournament:
         await self._new_round()
         return await self.view()
 
-    async def _snapshot_models(self, ids: list[str]) -> None:
+    async def _snapshot_models(self, ids: list[str], joined: bool = True) -> None:
         """Keeps, for the record, how each player was configured and priced when it entered: the upstream id,
-        provider, tier, reasoning setting, and OpenRouter's prices per token at that moment."""
+        provider, tier, reasoning setting, and OpenRouter's prices per token at that moment. A tournament saved
+        before this record existed gets it on resume, dated as recorded rather than as joined."""
+        stamp = "joined_at" if joined else "recorded_at"
         known = {model.id: model for model in self._registry.list(self._credentials, self._session)}
         prices = await _openrouter_prices()
         tiers = {entry["upstream"]: entry["tier"] for entry in self._registry.suggested()}
@@ -150,7 +152,7 @@ class Tournament:
                 "upstream": model.upstream,
                 "provider": model.provider,
                 "tier": tiers.get(model.upstream, ""),
-                "joined_at": time.time(),
+                stamp: time.time(),
             }
             if model.kind == "llm":
                 entry["reasoning"] = self._registry.reasoning_for(model.upstream)
@@ -226,6 +228,9 @@ class Tournament:
                 )
             self._rounds.append({"pairings": boards, "bye": round_["bye"]})
         self._paused = bool(data.get("paused"))
+        if not self._models:
+            await self._snapshot_models(self._participants, joined=False)
+            self._save()
         if self._rounds and not self._paused:
             for entry in self._rounds[-1]["pairings"]:
                 if entry["result"] is None:

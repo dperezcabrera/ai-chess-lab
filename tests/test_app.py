@@ -835,12 +835,22 @@ def test_a_tournament_is_saved_after_every_move_and_can_be_resumed_by_a_new_serv
     assert [t["id"] for t in listed] == [tournament_id] and listed[0]["current"] and not listed[0]["done"]
     assert listed[0]["round"] == 2 and listed[0]["finished_games"] == 1 and "You" in listed[0]["participants"]
 
+    path = saved_dir / f"{tournament_id}.json"
+    data = json.loads(path.read_text())
+    assert data["models"]["llm:openai/gpt-5-mini"]["kind"] == "llm" and "joined_at" in data["models"]["jev"]
+    data["models"] = {}
+    path.write_text(json.dumps(data))
     fresh = llm_app(make_container, make_client, ["nothing", "still nothing"] * 6, [], TOURNAMENT_DIR=str(saved_dir))
     fresh.post("/api/models", json={"upstream": "openai/gpt-5-mini"})
     assert fresh.get("/api/tournament").json()["active"] is False
     assert fresh.post("/api/tournaments/nope/resume").status_code == 409
     resumed = fresh.post(f"/api/tournaments/{tournament_id}/resume").json()
     assert resumed["id"] == tournament_id and resumed["active"] and resumed["round"] == 2
+    models = json.loads(path.read_text())["models"]
+    assert models["human"] == {"kind": "human"} and models["jev"]["kind"] == "system_one"
+    assert "recorded_at" in models["llm:openai/gpt-5-mini"] and "joined_at" not in models["jev"], (
+        "a record made on resume is dated as recorded, not as joined"
+    )
     assert resumed["rounds"][0]["pairings"][0]["result"] == "0-1" and resumed["finished_games"] == 1
     rows = {row["id"]: row for row in resumed["standings"]}
     assert (
