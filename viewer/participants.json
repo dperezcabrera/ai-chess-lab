@@ -27,7 +27,7 @@
    "metric": {
     "name": "Centipawn (cp) loss",
     "summary": "the metric, higher is worse",
-    "text": "How many cp, hundredths of a pawn, a move gives away against Stockfish's best move."
+    "text": "How many cp, hundredths of a pawn, a move gives away against Stockfish's best move. The evaluation behind it is complex: it weighs material, piece activity, king safety and pawn structure, among other factors, and checks them by searching many moves ahead."
    }
   },
   {
