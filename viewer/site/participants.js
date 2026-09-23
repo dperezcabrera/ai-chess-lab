@@ -81,7 +81,7 @@ function render(player, index, total, scales, direction, first) {
         el('div', {}, el('dt', {}, 'Context'), el('dd', {}, context(player.context_tokens)))),
     el('p', { class: 'description' }, player.description || ''),
     player.frontier_note && el('p', { class: 'note' }, player.frontier_note),
-    el('div', { class: 'prices' },
+    !['engine', 'human'].includes(player.kind) && el('div', { class: 'prices' },
       priceRow('Input', player.price_input_per_mtok, scales.input(player.price_input_per_mtok)),
       priceRow('Output', player.price_output_per_mtok, scales.output(player.price_output_per_mtok)),
       el('div', { class: 'scale', 'aria-hidden': 'true' }, el('span', {}, 'cheapest'), el('span', {}, 'dearest'))),
