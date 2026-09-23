@@ -55,6 +55,7 @@ function yesNo(value, yes, no) {
 
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let running = [];
+let stampTimer = null;
 
 // Buzzwords pile up at odd angles, then clear for the punchline. Every loop draws other phrases in other places,
 // and the loops go on until the slide is left.
@@ -104,17 +105,20 @@ function renderIntro(intro) {
 }
 
 function renderCover(cover) {
+  const lines = cover.lines || [cover.description];
   card.replaceChildren(
-    el('div', { class: 'cover' },
-      cover.image && el('img', { class: 'cover-image', src: cover.image, srcset: `${cover.image.replace('.webp', '-600.webp')} 600w, ${cover.image} 1200w`, sizes: '(max-width: 640px) 100vw, 640px', alt: cover.image_alt || '', width: 1200, height: 800, fetchpriority: 'high' }),
-      el('h1', { class: cover.image ? 'visually-hidden' : 'cover-title' }, cover.name),
-      el('p', { class: 'cover-sub' }, cover.description)));
+    el('img', { class: 'cover-full', src: cover.image, srcset: `${cover.image.replace('.webp', '-600.webp')} 600w, ${cover.image} 1200w, ${cover.image.replace('.webp', '-1536.webp')} 1536w`, sizes: '100vw', alt: cover.image_alt || '', width: 1536, height: 1024, fetchpriority: 'high' }),
+    el('h1', { class: 'visually-hidden' }, cover.name),
+    el('p', { class: 'cover-lines' }, lines.map((line, i) => el('span', { style: `animation-delay:${400 + i * 450}ms` }, line))));
 }
 
 function render(player, index, number, total, scales, direction) {
+  clearTimeout(stampTimer);
   running.forEach((animation) => animation.cancel());
   running = [];
   card.classList.toggle('card-intro', player.kind === 'intro');
+  card.classList.toggle('card-cover', player.kind === 'cover');
+  document.body.classList.toggle('on-cover', player.kind === 'cover');
   if (player.kind === 'intro') {
     renderIntro(player);
     return finish(player, index, number, total, direction);
@@ -128,6 +132,7 @@ function render(player, index, number, total, scales, direction) {
       el('div', { class: 'who' }, el('span', { class: 'logo-fallback', 'aria-hidden': 'true' }, '§'), el('div', { class: 'who-text' }, el('h1', {}, player.name), el('div', { class: 'maker' }, 'How the games are played'))),
       el('p', { class: 'description' }, player.description),
       el('ol', { class: 'rules' }, player.rules.map((rule) => el('li', {}, rule))));
+    if (player.stamp) stampTimer = setTimeout(() => card.append(el('p', { class: 'who-cares', 'aria-hidden': 'true' }, player.stamp)), 3000);
     return finish(player, index, number, total, direction);
   }
   const logo = player.kind === 'human'
