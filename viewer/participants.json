@@ -194,24 +194,6 @@
    ]
   },
   {
-   "id": "human",
-   "name": "Human",
-   "company": null,
-   "country": "Spain",
-   "kind": "human",
-   "released": null,
-   "parameters": null,
-   "reasoning": null,
-   "open_weights": null,
-   "frontier": null,
-   "frontier_note": null,
-   "context_tokens": null,
-   "price_input_per_mtok": null,
-   "price_output_per_mtok": null,
-   "description": "The organiser, playing on the web board against the models.",
-   "sources": []
-  },
-  {
    "id": "llm:openai/gpt-6-astra",
    "name": "GPT-6 Astra",
    "company": "OpenAI",
@@ -380,6 +362,28 @@
     "https://vercel.com/ai-gateway/models/jev",
     "https://ai-gateway.vercel.sh/v1/models"
    ]
+  },
+  {
+   "id": "human",
+   "name": "Human",
+   "company": null,
+   "country": "Spain",
+   "kind": "human",
+   "released": null,
+   "parameters": null,
+   "reasoning": null,
+   "open_weights": null,
+   "frontier": null,
+   "frontier_note": null,
+   "context_tokens": null,
+   "price_input_per_mtok": null,
+   "price_output_per_mtok": null,
+   "description": "The organiser, playing on the web board against the models.",
+   "sources": [],
+   "rating": {
+    "value": 1900,
+    "site": "Lichess"
+   }
   }
  ]
 }

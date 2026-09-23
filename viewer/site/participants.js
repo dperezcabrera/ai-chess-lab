@@ -66,10 +66,12 @@ function render(player, index, total, scales, direction) {
   card.replaceChildren(...[
     el('div', { class: 'who' }, logo, el('div', {}, el('h1', {}, player.name), el('div', { class: 'maker' }, [player.company, player.country].filter(Boolean).join(' · ') || DASH))),
     el('ul', { class: 'tags' }, el('li', { class: 'tag on' }, KIND[player.kind] || player.kind), yesNo(player.reasoning, 'Reasoning', 'No reasoning'), yesNo(player.open_weights, 'Open weights', 'Closed weights'), frontier),
-    el('dl', { class: 'facts' },
-      el('div', {}, el('dt', {}, 'Released'), el('dd', {}, released(player.released))),
-      el('div', {}, el('dt', {}, 'Parameters'), el('dd', {}, player.parameters || DASH)),
-      el('div', {}, el('dt', {}, 'Context'), el('dd', {}, context(player.context_tokens)))),
+    player.kind === 'human'
+      ? el('dl', { class: 'facts' }, el('div', {}, el('dt', {}, 'Rating'), el('dd', {}, player.rating ? `${player.rating.value} on ${player.rating.site}` : DASH)))
+      : el('dl', { class: 'facts' },
+        el('div', {}, el('dt', {}, 'Released'), el('dd', {}, released(player.released))),
+        el('div', {}, el('dt', {}, 'Parameters'), el('dd', {}, player.parameters || DASH)),
+        el('div', {}, el('dt', {}, 'Context'), el('dd', {}, context(player.context_tokens)))),
     el('p', { class: 'description' }, player.description || ''),
     player.frontier_note && el('p', { class: 'note' }, player.frontier_note),
     el('div', { class: 'prices' },
