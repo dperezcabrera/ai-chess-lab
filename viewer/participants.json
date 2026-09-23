@@ -3,7 +3,7 @@
  "participants": [
   {
    "id": "stockfish",
-   "name": "Stockfish 19",
+   "name": "Stockfish 19, the judge",
    "company": "The Stockfish developers",
    "country": "Open-source community",
    "kind": "engine",
@@ -14,11 +14,11 @@
    "reasoning": null,
    "open_weights": true,
    "frontier": null,
-   "frontier_note": "Out of competition: it judges the games and plays none of them.",
+   "frontier_note": "Out of competition: we take it as unbeatable for any human and any general-purpose AI, so it judges the games and plays none of them.",
    "context_tokens": null,
    "price_input_per_mtok": null,
    "price_output_per_mtok": null,
-   "description": "A specialised chess AI, the strongest open-source engine, with a neural network (NNUE) to evaluate positions. Here it acts as the judge: it evaluates every position of every game to mark best moves, inaccuracies, mistakes and blunders and to measure each player's accuracy. No player in this tournament could rival it.",
+   "description": "A specialised chess AI, the strongest open-source engine, with a neural network (NNUE) to evaluate positions. Here it is the judge: it evaluates every position of every game to mark best moves, inaccuracies, mistakes and blunders and to measure each player's accuracy.",
    "sources": [
     "https://stockfishchess.org/about/",
     "https://github.com/official-stockfish/Stockfish/releases/tag/sf_19"
