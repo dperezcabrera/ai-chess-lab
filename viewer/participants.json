@@ -109,7 +109,7 @@
    "country": "China",
    "kind": "llm",
    "released": "2026-07-16",
-   "parameters": "2.8T total, 104B active",
+   "parameters": "2.8T MoE, 104B active",
    "reasoning": true,
    "open_weights": true,
    "frontier": "not frontier",
@@ -133,7 +133,7 @@
    "country": "China",
    "kind": "llm",
    "released": "2026-09-02",
-   "parameters": "2.4T total, 95B active",
+   "parameters": "2.4T MoE, 95B active",
    "reasoning": true,
    "open_weights": false,
    "frontier": "not frontier",
@@ -148,7 +148,8 @@
     "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B",
     "https://artificialanalysis.ai/models/qwen3-8-max",
     "https://www.marktechpost.com/2026/08/03/alibaba-qwen-releases-qwen3-8-max/",
-    "https://arena.ai/leaderboard/text"
+    "https://arena.ai/leaderboard/text",
+    "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B"
    ]
   },
   {
@@ -158,7 +159,7 @@
    "country": "China",
    "kind": "llm",
    "released": "2026-09-10",
-   "parameters": "552B total, 8B active on input / 16B on output",
+   "parameters": "552B MoE, 8B active on input / 16B on output",
    "reasoning": false,
    "open_weights": true,
    "frontier": "not frontier",
@@ -173,7 +174,8 @@
     "https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash",
     "https://www.deepseek.com/en/news/deepseek-v4-1-flash/",
     "https://siliconangle.com/2026/09/10/deepseek-releases-v4-1-flash-says-it-outperforms-flagship-v4-pro/",
-    "https://arena.ai/leaderboard/text"
+    "https://arena.ai/leaderboard/text",
+    "https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash"
    ]
   },
   {
@@ -230,7 +232,7 @@
    "country": "China",
    "kind": "llm",
    "released": "2026-08",
-   "parameters": "744B total, 40B active",
+   "parameters": "744B MoE, 40B active",
    "reasoning": true,
    "open_weights": true,
    "frontier": "not frontier",
@@ -279,7 +281,7 @@
    "country": "China",
    "kind": "llm",
    "released": "2026-08-13",
-   "parameters": "1.6T total, 49B active",
+   "parameters": "1.6T MoE, 49B active",
    "reasoning": false,
    "open_weights": true,
    "frontier": "not frontier",
