@@ -90,8 +90,8 @@ h1 { margin: 0; font-size: 1.7rem; line-height: 1.15; letter-spacing: -0.01em; }
 @media (prefers-reduced-motion: reduce) { .buzz { opacity: 0.35; } .punchline { opacity: 1; } }
 .card-cover { position: fixed; inset: 0; align-self: stretch; justify-self: stretch; z-index: 1; min-height: 0; padding: 0; border: 0; border-radius: 0; overflow: hidden; background: #111; animation: none; }
 .cover-full { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 12%; }
-.cover-lines { position: absolute; left: 6vw; right: 6vw; bottom: 5vh; margin: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 0.3em; font-size: clamp(1.4rem, 3.4vw, 3rem); font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; }
-.cover-lines span { padding: 0.12em 0.35em; background: #fff; color: #1b1916; box-shadow: 0 10px 30px rgb(0 0 0 / 0.25); opacity: 0; animation: sticker 520ms var(--ease) forwards; }
+.cover-lines { position: absolute; left: 6vw; right: 6vw; top: 66.7%; bottom: 0; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.2em; text-align: center; font-size: clamp(1.4rem, 3.4vw, 3rem); font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; }
+.cover-lines span { color: #fff; text-shadow: 0 2px 4px rgb(0 0 0 / 0.8), 0 0 24px rgb(0 0 0 / 0.6); opacity: 0; animation: sticker 520ms var(--ease) forwards; }
 @keyframes sticker { from { opacity: 0; transform: translateY(0.6em) rotate(-1.5deg); } to { opacity: 1; transform: none; } }
 .on-cover .stage-head, .on-cover .dots { visibility: hidden; }
 .on-cover .stage-nav { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 2; }
