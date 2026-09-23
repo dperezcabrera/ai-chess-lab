@@ -53,7 +53,23 @@ function yesNo(value, yes, no) {
   return value === null || value === undefined ? null : el('li', { class: `tag${value ? ' on' : ''}` }, value ? yes : no);
 }
 
+function renderCover(cover, players) {
+  const faces = players.filter((p) => !['cover', 'rules', 'engine'].includes(p.kind));
+  card.replaceChildren(
+    el('div', { class: 'cover' },
+      el('h1', { class: 'cover-title' }, cover.name),
+      el('p', { class: 'cover-sub' }, cover.description),
+      el('ul', { class: 'cover-faces', 'aria-label': 'Players' }, faces.map((p) => el('li', { title: p.name }, p.kind === 'human'
+        ? el('span', { class: 'logo-fallback', 'aria-hidden': 'true' }, 'H')
+        : el('img', { class: 'logo', src: `logos/${logoKey(p.id)}.png`, alt: p.name, width: 48, height: 48 })))),
+      el('ul', { class: 'cover-meta' }, cover.meta.map((m) => el('li', {}, m)))));
+}
+
 function render(player, index, number, total, scales, direction) {
+  if (player.kind === 'cover') {
+    renderCover(player, allPlayers);
+    return finish(player, index, number, total, direction);
+  }
   if (player.kind === 'rules') {
     card.replaceChildren(
       el('div', { class: 'who' }, el('span', { class: 'logo-fallback', 'aria-hidden': 'true' }, '§'), el('div', { class: 'who-text' }, el('h1', {}, player.name), el('div', { class: 'maker' }, 'How the games are played'))),
@@ -105,6 +121,8 @@ function finish(player, index, number, total, direction) {
 }
 
 let cards = 0;
+let allPlayers = [];
+if (new URLSearchParams(location.search).has('present')) document.body.classList.add('presenting');
 
 async function main() {
   let players;
@@ -117,12 +135,13 @@ async function main() {
     return;
   }
   cards = players.length;
+  allPlayers = players;
   const scales = {
     input: scaleOf(players.map((p) => p.price_input_per_mtok)),
     output: scaleOf(players.map((p) => p.price_output_per_mtok)),
   };
   let seen = 0;
-  const numbers = players.map((p) => (['rules', 'engine'].includes(p.kind) ? null : ++seen));
+  const numbers = players.map((p) => (['cover', 'rules', 'engine'].includes(p.kind) ? null : ++seen));
   let index = 0;
   const go = (target, direction = 1) => {
     index = Math.max(0, Math.min(cards - 1, target));
