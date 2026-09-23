@@ -56,45 +56,51 @@ function yesNo(value, yes, no) {
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let running = [];
 
-// Buzzwords pile up at odd angles, then clear for the punchline; the loop runs until the slide is left.
+// Buzzwords pile up at odd angles, then clear for the punchline. Every loop draws other phrases in other places,
+// and the loops go on until the slide is left.
 function renderIntro(intro) {
   const step = 700;
   const hold = 5500;
-  const cycle = intro.phrases.length * step + hold;
-  const random = (seed) => { const x = Math.sin(seed * 9301 + 49297) * 233280; return x - Math.floor(x); };
-  const tilts = intro.phrases.map((_, i) => (random(i + 7) * 14 - 7).toFixed(1));
-  const phrases = intro.phrases.map((text, i) => el('span', {
-    class: 'buzz',
-    style: `left:${6 + random(i + 1) * 64}%;top:${6 + (i / intro.phrases.length) * 78}%;transform:rotate(${tilts[i]}deg);font-size:${(0.95 + random(i + 13) * 0.9).toFixed(2)}rem`,
-  }, text));
-  const punchline = el('p', { class: 'punchline' }, intro.punchline);
-  card.replaceChildren(el('div', { class: 'intro', 'aria-label': `${intro.phrases.join(', ')}. ${intro.punchline}` }, phrases, punchline));
-  const box = card.getBoundingClientRect();
-  for (const node of phrases) {
-    const room = box.width - node.offsetWidth - 16;
-    node.style.left = `${Math.max(8, Math.min(node.offsetLeft, room))}px`;
-  }
-  if (reducedMotion) return;
+  const count = Math.min(intro.per_loop || intro.phrases.length, intro.phrases.length);
+  const cycle = count * step + hold;
   const clear = (cycle - hold + 200) / cycle;
-  running = phrases.map((node, i) => {
-    const at = (i * step) / cycle;
-    const turn = (scale) => `rotate(${tilts[i]}deg) scale(${scale})`;
-    return node.animate([
-      { offset: 0, opacity: 0, transform: turn(0.6) },
-      { offset: at, opacity: 0, transform: turn(0.6) },
-      { offset: Math.min(at + 0.03, clear - 0.01), opacity: 1, transform: turn(1) },
-      { offset: clear, opacity: 1, transform: turn(1) },
-      { offset: Math.min(clear + 0.03, 1), opacity: 0, transform: turn(1.4) },
-      { offset: 1, opacity: 0, transform: turn(1.4) },
-    ].map((frame) => ({ ...frame, easing: 'ease-out' })), { duration: cycle, iterations: Infinity });
-  });
-  running.push(punchline.animate([
-    { offset: 0, opacity: 0, transform: 'scale(0.9)' },
-    { offset: clear + 0.03, opacity: 0, transform: 'scale(0.9)' },
-    { offset: clear + 0.07, opacity: 1, transform: 'scale(1)' },
-    { offset: 0.97, opacity: 1, transform: 'scale(1)' },
-    { offset: 1, opacity: 0, transform: 'scale(1)' },
-  ], { duration: cycle, iterations: Infinity }));
+  const layer = el('div', { class: 'intro', 'aria-label': `${intro.phrases.slice(0, count).join(', ')}. ${intro.punchline}` });
+  const punchline = el('p', { class: 'punchline' }, intro.punchline);
+  card.replaceChildren(layer);
+  const loop = () => {
+    const picked = [...intro.phrases].sort(() => Math.random() - 0.5).slice(0, count);
+    const tilts = picked.map(() => (Math.random() * 16 - 8).toFixed(1));
+    const phrases = picked.map((text, i) => el('span', {
+      class: 'buzz',
+      style: `left:${4 + Math.random() * 60}%;top:${5 + (i / count) * 80 + Math.random() * 3}%;transform:rotate(${tilts[i]}deg);font-size:${(0.9 + Math.random() * 1.1).toFixed(2)}rem`,
+    }, text));
+    layer.replaceChildren(...phrases, punchline);
+    const width = layer.clientWidth;
+    for (const node of phrases) node.style.left = `${Math.max(8, Math.min(node.offsetLeft, width - node.offsetWidth - 16))}px`;
+    if (reducedMotion) return;
+    running = phrases.map((node, i) => {
+      const at = (i * step) / cycle;
+      const turn = (scale) => `rotate(${tilts[i]}deg) scale(${scale})`;
+      return node.animate([
+        { offset: 0, opacity: 0, transform: turn(0.6) },
+        { offset: at, opacity: 0, transform: turn(0.6) },
+        { offset: Math.min(at + 0.03, clear - 0.01), opacity: 1, transform: turn(1) },
+        { offset: clear, opacity: 1, transform: turn(1) },
+        { offset: Math.min(clear + 0.03, 1), opacity: 0, transform: turn(1.4) },
+        { offset: 1, opacity: 0, transform: turn(1.4) },
+      ].map((frame) => ({ ...frame, easing: 'ease-out' })), { duration: cycle });
+    });
+    const last = punchline.animate([
+      { offset: 0, opacity: 0, transform: 'scale(0.9)' },
+      { offset: clear + 0.03, opacity: 0, transform: 'scale(0.9)' },
+      { offset: clear + 0.07, opacity: 1, transform: 'scale(1)' },
+      { offset: 0.97, opacity: 1, transform: 'scale(1)' },
+      { offset: 1, opacity: 0, transform: 'scale(1)' },
+    ], { duration: cycle });
+    running.push(last);
+    last.onfinish = () => { if (layer.isConnected) loop(); };
+  };
+  loop();
 }
 
 function renderCover(cover) {
