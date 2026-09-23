@@ -580,15 +580,11 @@ def build_tournament(path: Path, out: Path, human: str, engines: Engines | None,
     }
 
 
-def write_participants(seeds: list[str], out: Path) -> None:
-    """The players' cards (viewer/participants.json, written by hand from checked sources), in seed order."""
+def write_participants(out: Path) -> None:
+    """The players' cards (viewer/participants.json, written by hand from checked sources), in the file's order."""
     source = Path(__file__).resolve().parent / "participants.json"
-    if not source.exists():
-        return
-    cards = json.loads(source.read_text())
-    rank = {pid: i for i, pid in enumerate(seeds)}
-    cards["participants"].sort(key=lambda card: rank.get(card["id"], len(seeds)))
-    (out / "data" / "participants.json").write_text(json.dumps(cards, indent=1))
+    if source.exists():
+        shutil.copy2(source, out / "data" / "participants.json")
 
 
 def main() -> None:
@@ -624,7 +620,7 @@ def main() -> None:
             entry = build_tournament(path, out, args.human_name, engines, args.jobs, args.rounds)
             listed[entry["id"]] = entry
         index_path.write_text(json.dumps(sorted(listed.values(), key=lambda t: -t["started_at"]), indent=1))
-        write_participants(json.loads(args.files[-1].read_text())["participants"], out)
+        write_participants(out)
     finally:
         if engines:
             engines.close()
