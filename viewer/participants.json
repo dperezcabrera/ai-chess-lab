@@ -23,7 +23,11 @@
     "https://stockfishchess.org/about/",
     "https://github.com/official-stockfish/Stockfish/releases/tag/sf_19"
    ],
-   "role": "Judge"
+   "role": "Judge",
+   "metric": {
+    "name": "Centipawn loss",
+    "text": "The reference measure: how many hundredths of a pawn a move gives away compared with Stockfish's best move. Averaged over a game it is the ACPL. Higher is worse."
+   }
   },
   {
    "id": "llm:anthropic/claude-fable-5.1",
