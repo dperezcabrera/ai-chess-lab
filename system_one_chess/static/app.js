@@ -1111,7 +1111,6 @@ async function resumeTournament(id) {
 }
 
 async function loadSaved() {
-  const section = $('saved-section');
   const list = $('saved-list');
   try {
     const { tournaments } = await api('/api/tournaments');
@@ -1126,19 +1125,43 @@ async function loadSaved() {
       li.append(text, button);
       return li;
     }));
-    section.hidden = tournaments.length === 0;
+    $('saved-empty').hidden = tournaments.length > 0;
   } catch (error) {
-    section.hidden = true;
+    $('tournament-error').textContent = error.message;
   }
 }
 
+const TABS = ['new', 'saved'];
+
+function showTournamentTab(name) {
+  for (const tab of TABS) {
+    const selected = tab === name;
+    $(`tab-${tab}`).setAttribute('aria-selected', String(selected));
+    $(`tab-${tab}`).tabIndex = selected ? 0 : -1;
+    $(`panel-${tab}`).hidden = !selected;
+  }
+  $('tournament-start').hidden = name !== 'new';
+  $('tournament-hint').hidden = name !== 'new';
+}
+
+for (const tab of TABS) {
+  $(`tab-${tab}`).addEventListener('click', () => showTournamentTab(tab));
+  $(`tab-${tab}`).addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    const other = TABS[(TABS.indexOf(tab) + 1) % TABS.length];
+    showTournamentTab(other);
+    $(`tab-${other}`).focus();
+  });
+}
+
 function openTournamentDialog() {
-  $('saved-section').hidden = true;
   $('tournament-error').textContent = '';
+  showTournamentTab('new');
   renderParticipants();
   loadModels();
   loadSaved();
   tournamentDialog.showModal();
+  $('tournament-start').focus();
 }
 
 tournamentForm.addEventListener('change', syncTournamentDialog);
@@ -1211,13 +1234,15 @@ for (const button of sideForm.querySelectorAll('[data-pick]')) {
 function syncSideDialog() {
   const play = sideForm.elements.mode.value === 'play';
   $('opponent-segment').hidden = !play;
-  $('side-cards').hidden = !play;
+  $('colour-segment').hidden = !play;
   $('white-segment').hidden = play;
   $('black-segment').hidden = play;
-  $('watch-cards').hidden = play;
-  $('black-hint').textContent = `${modelName(chosen.opponent)} opens the game`;
-  $('watch-name').textContent = `${modelName(chosen.white)} vs ${modelName(chosen.black)}`;
-  $('side-footnote').textContent = play ? 'Pick your side to start playing right away.' : 'Both sides are decided by a model; you watch.';
+  const side = sideForm.elements.side.value;
+  const opponent = modelName(chosen.opponent);
+  $('side-footnote').textContent = !play
+    ? `${modelName(chosen.white)} vs ${modelName(chosen.black)}`
+    : side === 'random' ? `A coin decides who plays White against ${opponent}` : side === 'white' ? `You move first against ${opponent}` : `${opponent} opens the game`;
+  $('side-start').textContent = play ? 'Start the game' : 'Start watching';
 }
 
 async function loadModels() {
@@ -1239,7 +1264,7 @@ function openSideDialog() {
   syncSideDialog();
   loadModels();
   dialog.showModal();
-  sideForm.elements.mode[0].focus();
+  $('side-start').focus();
 }
 
 $('new-game').addEventListener('click', () => (PAGE === 'tournament' ? openTournamentDialog() : openSideDialog()));
@@ -1249,7 +1274,8 @@ sideForm.addEventListener('change', syncSideDialog);
 sideForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const play = sideForm.elements.mode.value === 'play';
-  const human = play ? event.submitter.value : 'none';
+  const side = sideForm.elements.side.value;
+  const human = !play ? 'none' : side === 'random' ? (Math.random() < 0.5 ? 'white' : 'black') : side;
   const body = play
     ? { human, white: human === 'white' ? 'jev' : chosen.opponent, black: human === 'black' ? 'jev' : chosen.opponent }
     : { human, white: chosen.white, black: chosen.black };
@@ -1334,7 +1360,7 @@ if (PAGE === 'tournament') {
   $('subtitle-tournament').hidden = false;
   $('nav-tournament').hidden = true;
   $('nav-play').hidden = false;
-  $('new-game').lastChild.textContent = ' New tournament';
+  $('new-game').lastChild.textContent = ' Tournament';
   await loadModels();
   const view = await loadTournament();
   if (view && view.rounds.length) {
