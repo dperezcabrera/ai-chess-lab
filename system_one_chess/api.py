@@ -317,12 +317,19 @@ class SessionConfigurer(FastApiConfigurer):
         )
 
 
+class RevalidatedFiles(StaticFiles):
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
 @component
 class WebConfigurer(FastApiConfigurer):
     priority = -100
 
     def configure_app(self, app: FastAPI) -> None:
-        app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+        app.mount("/static", RevalidatedFiles(directory=STATIC_DIR), name="static")
         app.add_exception_handler(IllegalMove, lambda _, e: JSONResponse({"error": str(e)}, status_code=409))
         app.add_exception_handler(JevError, lambda _, e: JSONResponse({"error": str(e)}, status_code=502))
         app.add_exception_handler(ProviderError, lambda _, e: JSONResponse({"error": str(e)}, status_code=400))
