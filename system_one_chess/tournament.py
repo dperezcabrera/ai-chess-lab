@@ -1,4 +1,5 @@
-"""A Swiss tournament for the session: a fixed number of rounds, each pairing players on equal scores.
+"""A Swiss tournament for the session: a fixed number of rounds, each pairing players on equal scores, or a full
+league when the number of rounds is enough for everyone to meet everyone once.
 
 Every board of a round is its own game. The server plays the games between models itself, several at a
 time up to `TOURNAMENT_CONCURRENCY`, while a game with you waits for your moves; when every board of a round
@@ -60,6 +61,32 @@ def pair_round(
     return pairs, bye
 
 
+def league_rounds(players: int) -> int:
+    """How many rounds it takes for everyone to meet everyone once; with an odd count each round has a bye."""
+    return players - 1 if players % 2 == 0 else players
+
+
+def league_round(order: list[str], number: int) -> tuple[list, str | None]:
+    """Round `number`, from 1, of a round robin by the circle method: the first player stays put and the rest
+    rotate one place a round, so over `league_rounds` rounds every pair meets exactly once. Colours follow the
+    places in `order`: the lower place takes white when the two places add up to an odd number, which leaves
+    everyone with as many whites as blacks, or one more of either when each plays an odd number of games."""
+    place = {player: index for index, player in enumerate(order)}
+    pool = [*order, None] if len(order) % 2 else list(order)
+    shift = (number - 1) % (len(pool) - 1)
+    rest = pool[1:]
+    lineup = [pool[0], *rest[len(rest) - shift :], *rest[: len(rest) - shift]]
+    pairs, bye = [], None
+    for index in range(len(lineup) // 2):
+        first, second = lineup[index], lineup[-1 - index]
+        if first is None or second is None:
+            bye = second if first is None else first
+            continue
+        low, high = sorted((first, second), key=place.__getitem__)
+        pairs.append((low, high) if (place[low] + place[high]) % 2 else (high, low))
+    return pairs, bye
+
+
 @component(scope="session")
 class Tournament:
     def __init__(
@@ -85,6 +112,7 @@ class Tournament:
         self._id = ""
         self._participants: list[str] = []
         self._rounds_total = 0
+        self._league: list[str] = []
         self._time_limit: float | None = None
         self._models: dict[str, dict] = {}
         self._paused = False
@@ -118,6 +146,7 @@ class Tournament:
         self.stop()
         self._participants = ids
         self._rounds_total = rounds
+        self._league = secrets.SystemRandom().sample(ids, len(ids)) if rounds == league_rounds(len(ids)) else []
         self._time_limit = time_limit
         self._paused = False
         self._balance = dict.fromkeys(ids, 0)
@@ -195,6 +224,7 @@ class Tournament:
         _claim(self._id, self)
         self._participants = list(data["participants"])
         self._rounds_total = data["rounds_total"]
+        self._league = list(data.get("league_order", []))
         self._time_limit = data.get("time_limit")
         self._models = dict(data.get("models", {}))
         self._played = {frozenset(pair) for pair in data["played"]}
@@ -248,6 +278,7 @@ class Tournament:
             "elapsed": time.time() - self._started_at if self._started_at else 0.0,
             "participants": self._participants,
             "rounds_total": self._rounds_total,
+            "league_order": self._league,
             "time_limit": self._time_limit,
             "paused": self._paused,
             "models": self._models,
@@ -397,7 +428,8 @@ class Tournament:
     async def add_participants(self, participants: list[str]) -> dict:
         """Lets new players into a running tournament. They are paired among themselves on extra boards of the
         current round, an odd one out joins the player who has the bye or takes it, and from the next round
-        they are paired like everyone else."""
+        they are paired like everyone else; a league turns Swiss from then on, since its schedule has no place
+        for them."""
         if not self.active:
             raise IllegalMove("no tournament is running")
         ids = [model_id for model_id in dict.fromkeys(participants) if model_id not in self._participants]
@@ -414,6 +446,7 @@ class Tournament:
             raise IllegalMove(f"a tournament holds at most {MAX_PARTICIPANTS} players")
         await self._snapshot_models(ids)
         async with self._lock:
+            self._league = []
             for model_id in ids:
                 self._participants.append(model_id)
                 self._balance[model_id] = 0
@@ -526,8 +559,12 @@ class Tournament:
         return await self.view()
 
     async def _new_round(self) -> None:
-        order = self._participants if not self._rounds else [row["id"] for row in self._table()]
-        pairs, bye = pair_round(order, self._played, self._balance, self._byes)
+        number = len(self._rounds) + 1
+        if self._league and number <= league_rounds(len(self._league)):
+            pairs, bye = league_round(self._league, number)
+        else:
+            order = self._participants if not self._rounds else [row["id"] for row in self._table()]
+            pairs, bye = pair_round(order, self._played, self._balance, self._byes)
         boards = []
         for white, black in pairs:
             self._played.add(frozenset((white, black)))

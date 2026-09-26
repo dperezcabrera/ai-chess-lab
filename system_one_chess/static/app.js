@@ -1053,6 +1053,26 @@ async function pollTournament() {
 const tournamentDialog = $('tournament-dialog');
 const tournamentForm = $('tournament-form');
 const ROUND_CHOICES = [1, 2, 3, 4, 5, 6, 7];
+const leagueRounds = (players) => (players % 2 ? players : players - 1);
+
+/** The round choices for this many players: the Swiss counts below a full league, then the league itself,
+ * which the server plays as a round robin so everyone meets everyone once. */
+function renderRoundOptions(players) {
+  const league = leagueRounds(Math.max(2, players));
+  const box = $('rounds-options');
+  if (box.dataset.league === String(league)) return;
+  const previous = tournamentForm.elements.rounds ? tournamentForm.elements.rounds.value : '3';
+  const choices = [...ROUND_CHOICES.filter((n) => n < league).map(String), 'league'];
+  const checked = choices.includes(previous) ? previous : 'league';
+  box.dataset.league = String(league);
+  box.replaceChildren(...choices.map((value) => {
+    const label = document.createElement('label');
+    label.className = `segment-option${value === 'league' ? ' segment-league' : ''}`;
+    const text = value === 'league' ? `All vs all \u00b7 ${league}` : value;
+    label.append(Object.assign(document.createElement('input'), { type: 'radio', name: 'rounds', value, checked: value === checked }), Object.assign(document.createElement('span'), { textContent: text }));
+    return label;
+  }));
+}
 
 let chosenParticipants = null;
 
@@ -1060,14 +1080,6 @@ function renderParticipants() {
   const ready = new Set(models.filter((model) => model.ready).map((model) => model.id));
   chosenParticipants = (chosenParticipants ?? models.filter((model) => model.kind === 'system_one').map((model) => model.id)).filter((id) => ready.has(id));
   fillPickField($('participants-field'), chosenParticipants);
-  if (!$('rounds-options').children.length) {
-    $('rounds-options').replaceChildren(...ROUND_CHOICES.map((n) => {
-      const label = document.createElement('label');
-      label.className = 'segment-option';
-      label.append(Object.assign(document.createElement('input'), { type: 'radio', name: 'rounds', value: n, checked: n === 3 }), Object.assign(document.createElement('span'), { textContent: n }));
-      return label;
-    }));
-  }
   syncTournamentDialog();
 }
 
@@ -1081,19 +1093,23 @@ $('participants-field').addEventListener('click', async () => {
 function tournamentChoice() {
   const participants = [...(chosenParticipants || [])];
   const human = tournamentForm.elements.human.value === 'yes';
-  const rounds = parseInt(tournamentForm.elements.rounds.value, 10);
+  const players = participants.length + (human ? 1 : 0);
+  const choice = tournamentForm.elements.rounds ? tournamentForm.elements.rounds.value : '3';
+  const rounds = choice === 'league' ? leagueRounds(Math.max(2, players)) : parseInt(choice, 10);
   const time_limit = parseInt(tournamentForm.elements.time_limit.value, 10);
   return { participants, human, rounds, time_limit };
 }
 
 function syncTournamentDialog() {
+  const chosen = tournamentChoice();
+  renderRoundOptions(chosen.participants.length + (chosen.human ? 1 : 0));
   const { participants, human, rounds } = tournamentChoice();
   const players = participants.length + (human ? 1 : 0);
   const games = Math.floor(players / 2) * rounds;
   $('tournament-start').disabled = players < 2;
   const { time_limit } = tournamentChoice();
   const clock = time_limit ? `, ${time_limit >= 60 ? `${time_limit / 60} h` : `${time_limit} min`} each` : '';
-  $('tournament-hint').textContent = players < 2 ? 'Pick at least two players' : `${players} players, ${rounds} round${rounds === 1 ? '' : 's'}, ${games} game${games === 1 ? '' : 's'}${players % 2 ? ', one bye per round' : ''}${clock}`;
+  $('tournament-hint').textContent = players < 2 ? 'Pick at least two players' : `${players} players, ${rounds} round${rounds === 1 ? '' : 's'}${rounds === leagueRounds(players) ? ', everyone meets everyone once' : ''}, ${games} game${games === 1 ? '' : 's'}${players % 2 ? ', one bye per round' : ''}${clock}`;
 }
 
 async function resumeTournament(id) {

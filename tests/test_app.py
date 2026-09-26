@@ -672,6 +672,27 @@ def test_swiss_pairing_matches_neighbours_avoids_rematches_and_gives_the_bye_to_
     assert pairs == [("b", "a")] and bye is None, "a rematch with no alternative swaps the colours"
 
 
+def test_a_full_league_meets_every_pair_once_with_one_bye_each_and_balanced_colours():
+    from itertools import combinations
+
+    from system_one_chess.tournament import league_round, league_rounds
+
+    for count in range(2, 17):
+        players = [f"p{index}" for index in range(count)]
+        balance = dict.fromkeys(players, 0)
+        met, byes = [], []
+        for number in range(1, league_rounds(count) + 1):
+            pairs, bye = league_round(players, number)
+            byes.append(bye)
+            for white, black in pairs:
+                met.append(frozenset((white, black)))
+                balance[white] += 1
+                balance[black] -= 1
+        assert sorted(map(sorted, met)) == sorted(map(sorted, combinations(players, 2))), count
+        assert max(map(abs, balance.values())) <= 1, "as many whites as blacks, or one more of either"
+        assert (sorted(byes) == sorted(players)) if count % 2 else byes == [None] * (count - 1), count
+
+
 def until(condition, timeout=10.0):
     """Polls `condition` until it returns something truthy; the tournament plays in the app's own loop."""
     import time
