@@ -1119,12 +1119,7 @@ function syncTournamentDialog() {
   syncRounds(chosen.participants.length + (chosen.human ? 1 : 0));
   const { participants, human, rounds } = tournamentChoice();
   $('rounds-input').value = rounds;
-  const players = participants.length + (human ? 1 : 0);
-  const games = Math.floor(players / 2) * rounds;
-  $('tournament-start').disabled = players < 2;
-  const { time_limit } = tournamentChoice();
-  const clock = time_limit ? `, ${time_limit >= 60 ? `${time_limit / 60} h` : `${time_limit} min`} each` : '';
-  $('tournament-hint').textContent = players < 2 ? 'Pick at least two players' : `${players} players, ${rounds} round${rounds === 1 ? '' : 's'}${rounds === leagueRounds(players) ? ', everyone meets everyone once' : rounds === 2 * leagueRounds(players) ? ', everyone meets everyone twice' : rounds > leagueRounds(players) ? ', a league first' : ''}, ${games} game${games === 1 ? '' : 's'}${players % 2 ? ', one bye per round' : ''}${clock}`;
+  $('tournament-start').disabled = participants.length + (human ? 1 : 0) < 2;
 }
 
 async function resumeTournament(id) {
@@ -1172,7 +1167,6 @@ function showTournamentTab(name) {
     $(`panel-${tab}`).hidden = !selected;
   }
   $('tournament-start').hidden = name !== 'new';
-  $('tournament-hint').hidden = name !== 'new';
 }
 
 for (const tab of TABS) {
