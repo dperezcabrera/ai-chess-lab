@@ -165,7 +165,9 @@ function moveLabel(move) {
   return `${number}${move.color === 'white' ? '.' : '...'} ${move.san}${move.judgement ? move.judgement.glyph : ''}`;
 }
 
-export function renderChart(container, tooltip, analysis) {
+/** Draws the evaluation after every move; `onPick(ply)`, when given, is called with the position clicked, or stepped
+ * to with the arrow keys, so the board can show it. */
+export function renderChart(container, tooltip, analysis, onPick = null) {
   const width = 960;
   const height = 240;
   const pad = { top: 16, right: 16, bottom: 28, left: 52 };
@@ -199,7 +201,7 @@ export function renderChart(container, tooltip, analysis) {
 
   const crosshair = el('line', { y1: pad.top, y2: height - pad.bottom, class: 'chart-crosshair', visibility: 'hidden' });
   const focusDot = el('circle', { r: 5, class: 'chart-focus', visibility: 'hidden' });
-  const hit = el('rect', { x: pad.left, y: pad.top, width: innerWidth, height: innerHeight, fill: 'transparent', tabindex: 0, 'aria-label': 'Evaluation chart. Use left and right arrows to step through moves.' });
+  const hit = el('rect', { x: pad.left, y: pad.top, width: innerWidth, height: innerHeight, fill: 'transparent', tabindex: 0, 'aria-label': 'Evaluation chart. Use left and right arrows to step through moves; the board follows.' });
   svg.append(crosshair, focusDot, hit);
 
   let focused = 0;
@@ -242,13 +244,17 @@ export function renderChart(container, tooltip, analysis) {
     show(Math.round(ratio * last));
   });
   hit.addEventListener('pointerleave', hide);
+  hit.addEventListener('click', () => onPick?.(focused));
+  if (onPick) hit.style.cursor = 'pointer';
   hit.addEventListener('focus', () => show(focused));
   hit.addEventListener('blur', hide);
   hit.addEventListener('keydown', (event) => {
     if (event.key === 'ArrowRight') show(focused + 1);
     else if (event.key === 'ArrowLeft') show(focused - 1);
-    else return;
+    else if (event.key !== 'Enter') return;
     event.preventDefault();
+    event.stopPropagation();
+    onPick?.(focused);
   });
 
   container.replaceChildren(svg);

@@ -4,7 +4,6 @@ import { pickModels } from './picker.js';
 
 const $ = (id) => document.getElementById(id);
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const DECISION_ROWS = 3;
 
 let generation = 0;
 let currentHuman = 'white';
@@ -44,21 +43,6 @@ function setStatus(text, { thinking = false, error = false, retry = false, pardo
   $('pardon').hidden = !pardon;
 }
 
-function renderDecision(top) {
-  const body = $('decision');
-  body.replaceChildren();
-  for (let i = 0; i < DECISION_ROWS; i++) {
-    const row = body.insertRow();
-    const entry = top[i];
-    row.className = entry ? '' : 'placeholder';
-    const move = row.insertCell();
-    move.className = 'col-move';
-    move.textContent = entry ? entry.san : '–';
-    const probability = row.insertCell();
-    probability.className = 'col-prob';
-    probability.textContent = entry ? `${(entry.probability * 100).toFixed(1)}%` : '–';
-  }
-}
 
 let viewPly = null;
 
@@ -259,10 +243,7 @@ function render(state) {
   renderUsage(state);
   syncAnalysis(state);
   $('game-id').textContent = state.game_id;
-  renderDecision(state.jev_top);
   renderIllegalAttempts(state);
-  const lastMover = state.history.length ? (state.turn === 'white' ? 'black' : 'white') : null;
-  $('decision-title').textContent = lastMover && state.human !== lastMover ? `${playerOf(state, lastMover).name}'s last decision` : 'Last decision';
   if (state.over && standingsKey !== state.game_id) {
     standingsKey = state.game_id;
     loadStandings();
@@ -359,7 +340,7 @@ async function runAnalysis() {
     analysis.glyphs = result.moves.map((move) => (move.judgement ? move.judgement.glyph : ''));
     setAnalysisMessage('');
     $('analysis-result').hidden = false;
-    renderChart($('chart'), $('chart-tooltip'), result);
+    renderChart($('chart'), $('chart-tooltip'), result, viewPosition);
     renderSummary(result.summary);
     renderVersusRandom(result);
     renderMoves(current.history);
@@ -1378,7 +1359,6 @@ $('models-form').addEventListener('submit', async (event) => {
   }
 });
 
-renderDecision([]);
 if (PAGE === 'tournament') {
   $('tournament-section').hidden = false;
   $('ranking-section').hidden = true;
