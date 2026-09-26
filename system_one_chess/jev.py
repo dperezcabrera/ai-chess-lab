@@ -123,6 +123,26 @@ class JevApi:
             loop.create_task(self._client.aclose())
 
 
+def drawing_reply(board: chess.Board) -> str | None:
+    """How the side to move could end the game in a draw with its next move, if it can: by making the position
+    appear a third time, or by completing fifty moves without a capture or a pawn move. Both need seven plies of
+    neither already behind, so most positions are answered without trying a single reply."""
+    if board.halfmove_clock < 7:
+        return None
+    for reply in board.legal_moves:
+        board.push(reply)
+        try:
+            if board.is_checkmate():
+                continue
+            if board.is_repetition(3):
+                return "by repeating the position a third time"
+            if board.is_fifty_moves():
+                return "by the fifty-move rule"
+        finally:
+            board.pop()
+    return None
+
+
 def describe(board: chess.Board, move: chess.Move) -> str:
     if board.is_castling(move):
         text = "castle kingside" if board.is_kingside_castling(move) else "castle queenside"
@@ -151,6 +171,9 @@ def describe(board: chess.Board, move: chess.Move) -> str:
             text += ", gives check"
         if board.is_repetition(2):
             text += ", repeats an earlier position (a third time would be a draw)"
+        draw = drawing_reply(board)
+        if draw:
+            text += f", lets the opponent end the game in a DRAW at once {draw}"
     if board.is_attacked_by(board.turn, move.to_square):
         text += ", moved piece can be captured next turn"
     board.pop()

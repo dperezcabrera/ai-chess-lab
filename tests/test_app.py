@@ -1333,6 +1333,15 @@ def test_options_say_when_a_move_draws_by_repetition_stalemate_or_material():
     text = describe(board, board.parse_san("Ng8"))
     assert "third repetition" in text and "DRAW" in text, "back to the start a third time ends the game"
 
+    board = chess.Board()
+    for san in ("Nf3", "Nf6", "Ng1", "Ng8", "Nf3", "Nf6"):
+        board.push_san(san)
+    text = describe(board, board.parse_san("Ng1"))
+    assert "lets the opponent end the game in a DRAW at once by repeating" in text, "then Ng8 is the third time"
+    assert "lets the opponent" not in describe(board, board.parse_san("e4")), "a pawn move leaves nothing to repeat"
+    fifty = chess.Board("7k/8/8/8/8/8/8/K6R w - - 98 80")
+    assert "by the fifty-move rule" in describe(fifty, fifty.parse_san("Rh2"))
+
     stalemate = chess.Board("7k/5Q2/6K1/8/8/8/8/8 w - - 0 1")
     assert "STALEMATE" in describe(stalemate, stalemate.parse_san("Qe6"))
     assert "CHECKMATE" in describe(stalemate, stalemate.parse_san("Qg7#"))
