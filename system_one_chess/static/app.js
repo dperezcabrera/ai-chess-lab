@@ -1052,27 +1052,31 @@ async function pollTournament() {
 
 const tournamentDialog = $('tournament-dialog');
 const tournamentForm = $('tournament-form');
-const ROUND_CHOICES = [1, 2, 3, 4, 5, 6, 7];
+const MAX_ROUNDS = 30;
 const leagueRounds = (players) => (players % 2 ? players : players - 1);
+let roundCycles = 0;
 
-/** The round choices for this many players: the Swiss counts below a full league, then the league itself,
- * which the server plays as a round robin so everyone meets everyone once. */
-function renderRoundOptions(players) {
-  const league = leagueRounds(Math.max(2, players));
-  const box = $('rounds-options');
-  if (box.dataset.league === String(league)) return;
-  const previous = tournamentForm.elements.rounds ? tournamentForm.elements.rounds.value : '3';
-  const choices = [...ROUND_CHOICES.filter((n) => n < league).map(String), 'league'];
-  const checked = choices.includes(previous) ? previous : 'league';
-  box.dataset.league = String(league);
-  box.replaceChildren(...choices.map((value) => {
-    const label = document.createElement('label');
-    label.className = `segment-option${value === 'league' ? ' segment-league' : ''}`;
-    const text = value === 'league' ? `All vs all \u00b7 ${league}` : value;
-    label.append(Object.assign(document.createElement('input'), { type: 'radio', name: 'rounds', value, checked: value === checked }), Object.assign(document.createElement('span'), { textContent: text }));
-    return label;
-  }));
+/** League and Double follow the number of players: the rounds for everyone to meet everyone once or twice. */
+function syncRounds(players) {
+  const input = $('rounds-input');
+  if (roundCycles) input.value = Math.min(MAX_ROUNDS, leagueRounds(Math.max(2, players)) * roundCycles);
+  document.querySelectorAll('.rounds-preset').forEach((button) => button.setAttribute('aria-pressed', String(Number(button.dataset.cycles) === roundCycles)));
 }
+
+function stepRounds(delta) {
+  roundCycles = 0;
+  $('rounds-input').value = Math.min(MAX_ROUNDS, Math.max(1, (parseInt($('rounds-input').value, 10) || 1) + delta));
+  syncTournamentDialog();
+}
+
+$('rounds-fewer').addEventListener('click', () => stepRounds(-1));
+$('rounds-more').addEventListener('click', () => stepRounds(1));
+$('rounds-input').addEventListener('input', () => { roundCycles = 0; });
+$('rounds-input').addEventListener('keydown', (event) => { if (event.key === 'Enter') event.preventDefault(); });
+document.querySelectorAll('.rounds-preset').forEach((button) => button.addEventListener('click', () => {
+  roundCycles = Number(button.dataset.cycles);
+  syncTournamentDialog();
+}));
 
 let chosenParticipants = null;
 
@@ -1093,23 +1097,22 @@ $('participants-field').addEventListener('click', async () => {
 function tournamentChoice() {
   const participants = [...(chosenParticipants || [])];
   const human = tournamentForm.elements.human.value === 'yes';
-  const players = participants.length + (human ? 1 : 0);
-  const choice = tournamentForm.elements.rounds ? tournamentForm.elements.rounds.value : '3';
-  const rounds = choice === 'league' ? leagueRounds(Math.max(2, players)) : parseInt(choice, 10);
+  const rounds = Math.min(MAX_ROUNDS, Math.max(1, parseInt($('rounds-input').value, 10) || 1));
   const time_limit = parseInt(tournamentForm.elements.time_limit.value, 10);
   return { participants, human, rounds, time_limit };
 }
 
 function syncTournamentDialog() {
   const chosen = tournamentChoice();
-  renderRoundOptions(chosen.participants.length + (chosen.human ? 1 : 0));
+  syncRounds(chosen.participants.length + (chosen.human ? 1 : 0));
   const { participants, human, rounds } = tournamentChoice();
+  $('rounds-input').value = rounds;
   const players = participants.length + (human ? 1 : 0);
   const games = Math.floor(players / 2) * rounds;
   $('tournament-start').disabled = players < 2;
   const { time_limit } = tournamentChoice();
   const clock = time_limit ? `, ${time_limit >= 60 ? `${time_limit / 60} h` : `${time_limit} min`} each` : '';
-  $('tournament-hint').textContent = players < 2 ? 'Pick at least two players' : `${players} players, ${rounds} round${rounds === 1 ? '' : 's'}${rounds === leagueRounds(players) ? ', everyone meets everyone once' : ''}, ${games} game${games === 1 ? '' : 's'}${players % 2 ? ', one bye per round' : ''}${clock}`;
+  $('tournament-hint').textContent = players < 2 ? 'Pick at least two players' : `${players} players, ${rounds} round${rounds === 1 ? '' : 's'}${rounds === leagueRounds(players) ? ', everyone meets everyone once' : rounds === 2 * leagueRounds(players) ? ', everyone meets everyone twice' : rounds > leagueRounds(players) ? ', a league first' : ''}, ${games} game${games === 1 ? '' : 's'}${players % 2 ? ', one bye per round' : ''}${clock}`;
 }
 
 async function resumeTournament(id) {

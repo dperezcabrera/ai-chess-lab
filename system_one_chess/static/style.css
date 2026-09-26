@@ -404,13 +404,16 @@ html:has(dialog[open]) { overflow: hidden; scrollbar-gutter: stable; }
 .segment-option { position: relative; flex: 1 1 128px; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 44px; padding: var(--space-1) var(--space-2); border-radius: calc(var(--radius) - 2px); cursor: pointer; text-align: center; line-height: 1.2; }
 .segment-option input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 .segment-option span { font-weight: 600; }
-#rounds-options .segment-option { flex: 1 1 44px; }
-#rounds-options .segment-league { flex: 2 1 128px; }
+.rounds-picker { align-items: center; }
+.rounds-picker input { width: 5ch; min-height: 44px; border: 0; border-radius: calc(var(--radius) - 2px); background: var(--surface); color: var(--text); font: inherit; font-weight: 600; font-variant-numeric: tabular-nums; text-align: center; }
+.rounds-picker input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.rounds-preset { flex: 1 1 88px; min-height: 44px; border: 0; border-radius: calc(var(--radius) - 2px); background: none; color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
+.rounds-preset:hover { background: color-mix(in srgb, var(--surface) 60%, transparent); }
+.rounds-preset[aria-pressed="true"] { background: var(--surface); box-shadow: 0 1px 3px rgb(0 0 0 / 0.2); }
 .segment-option small { font-size: 0.75rem; color: var(--text-muted); }
 .segment-option:has(input:checked) { background: var(--surface); box-shadow: 0 1px 3px rgb(0 0 0 / 0.2); }
 .segment-option:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }
 .segment-piece { flex: 1 1 88px; flex-direction: row; gap: var(--space-2); }
-#rounds-options .segment-option { flex: 1 1 36px; }
 .mini-king { position: relative; display: inline-flex; flex: none; width: 28px; height: 28px; }
 .mini-king piece { position: static; display: block; width: 28px; height: 28px; will-change: auto; }
 .mini-king-pair piece { width: 20px; height: 20px; }

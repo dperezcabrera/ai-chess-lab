@@ -506,10 +506,10 @@
   <form id="tournament-form" class="side-form">
     <header class="side-header">
       <h2 id="tournament-dialog-title">Tournament</h2>
-      <p>Swiss system: every round pairs players on equal scores, nobody meets twice while it can be avoided, and an odd player out scores a bye. All vs all plays a full league instead: everyone meets everyone once, with balanced colours.</p>
+      <p>Swiss system: every round pairs players on equal scores, nobody meets twice while it can be avoided, and an odd player out scores a bye. League plays everyone against everyone once, Double twice with the colours swapped, and more rounds go on Swiss.</p>
       <div class="tabs" role="tablist" aria-label="Tournament">
         <button class="tab" type="button" role="tab" id="tab-new" aria-selected="true" aria-controls="panel-new">New</button>
-        <button class="tab" type="button" role="tab" id="tab-saved" aria-selected="false" aria-controls="panel-saved" tabindex="-1">Review or resume</button>
+        <button class="tab" type="button" role="tab" id="tab-saved" aria-selected="false" aria-controls="panel-saved" tabindex="-1">Saved</button>
       </div>
     </header>
 
@@ -529,7 +529,17 @@
 
       <fieldset class="segment" id="rounds-segment">
         <legend>Rounds</legend>
-        <div class="segment-options" id="rounds-options"></div>
+        <div class="segment-options rounds-picker" id="rounds-options">
+          <button class="icon-button" type="button" id="rounds-fewer" aria-label="Fewer rounds" title="Fewer rounds">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M5 11h14v2H5z"/></svg>
+          </button>
+          <input id="rounds-input" name="rounds" type="number" inputmode="numeric" min="1" max="30" value="3" aria-label="Rounds">
+          <button class="icon-button" type="button" id="rounds-more" aria-label="More rounds" title="More rounds">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M19 11h-6V5h-2v6H5v2h6v6h2v-6h6z"/></svg>
+          </button>
+          <button class="rounds-preset" type="button" data-cycles="1" aria-pressed="false" title="Everyone plays everyone once">League</button>
+          <button class="rounds-preset" type="button" data-cycles="2" aria-pressed="false" title="Everyone plays everyone twice, colours swapped">Double</button>
+        </div>
       </fieldset>
 
       <fieldset class="segment" id="time-segment">

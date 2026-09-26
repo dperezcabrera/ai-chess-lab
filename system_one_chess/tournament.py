@@ -1,5 +1,6 @@
-"""A Swiss tournament for the session: a fixed number of rounds, each pairing players on equal scores, or a full
-league when the number of rounds is enough for everyone to meet everyone once.
+"""A Swiss tournament for the session: a fixed number of rounds, each pairing players on equal scores, or a league
+when there are rounds enough for everyone to meet everyone once: the round robin first, then, with rounds for it,
+the return leg with the colours swapped, and Swiss rounds after that.
 
 Every board of a round is its own game. The server plays the games between models itself, several at a
 time up to `TOURNAMENT_CONCURRENCY`, while a game with you waits for your moves; when every board of a round
@@ -37,7 +38,7 @@ def _claim(tournament_id: str, owner: "Tournament") -> None:
     _LOADED[tournament_id] = owner
 
 
-MAX_ROUNDS = 20
+MAX_ROUNDS = 30
 
 
 def pair_round(
@@ -146,7 +147,7 @@ class Tournament:
         self.stop()
         self._participants = ids
         self._rounds_total = rounds
-        self._league = secrets.SystemRandom().sample(ids, len(ids)) if rounds == league_rounds(len(ids)) else []
+        self._league = secrets.SystemRandom().sample(ids, len(ids)) if rounds >= league_rounds(len(ids)) else []
         self._time_limit = time_limit
         self._paused = False
         self._balance = dict.fromkeys(ids, 0)
@@ -560,8 +561,11 @@ class Tournament:
 
     async def _new_round(self) -> None:
         number = len(self._rounds) + 1
-        if self._league and number <= league_rounds(len(self._league)):
-            pairs, bye = league_round(self._league, number)
+        cycle = league_rounds(len(self._league)) if self._league else 0
+        if self._league and number <= 2 * cycle:
+            pairs, bye = league_round(self._league, (number - 1) % cycle + 1)
+            if number > cycle:
+                pairs = [(black, white) for white, black in pairs]
         else:
             order = self._participants if not self._rounds else [row["id"] for row in self._table()]
             pairs, bye = pair_round(order, self._played, self._balance, self._byes)

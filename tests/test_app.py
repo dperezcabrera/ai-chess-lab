@@ -672,6 +672,16 @@ def test_swiss_pairing_matches_neighbours_avoids_rematches_and_gives_the_bye_to_
     assert pairs == [("b", "a")] and bye is None, "a rematch with no alternative swaps the colours"
 
 
+def test_a_league_plays_the_return_leg_with_the_colours_swapped(make_container, make_client):
+    client = llm_app(make_container, make_client, ["nothing"] * 40, [])
+    client.post("/api/models", json={"upstream": "openai/gpt-5-mini"})
+    view = client.post("/api/tournament", json={"participants": ["llm:openai/gpt-5-mini", "jev"], "rounds": 2}).json()
+    first = view["rounds"][0]["pairings"][0]
+    view = until(lambda: (v := client.get("/api/tournament").json()) and v["round"] == 2 and v)
+    second = view["rounds"][1]["pairings"][0]
+    assert (second["white"]["id"], second["black"]["id"]) == (first["black"]["id"], first["white"]["id"])
+
+
 def test_a_full_league_meets_every_pair_once_with_one_bye_each_and_balanced_colours():
     from itertools import combinations
 
