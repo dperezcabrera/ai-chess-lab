@@ -434,6 +434,7 @@ html:has(dialog[open]) { overflow: hidden; scrollbar-gutter: stable; }
   bottom: 0;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-2);
   min-height: 76px;
   padding: var(--space-3) var(--space-5);
@@ -646,7 +647,7 @@ html:has(dialog[open]) { overflow: hidden; scrollbar-gutter: stable; }
 .pick-words { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .pick-name { font-weight: 600; }
 .pick-sub { font-size: 0.8rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pick-chevron { font-size: 0.8rem; color: var(--accent); font-weight: 600; flex: none; }
+.pick-chevron { flex: none; width: 20px; height: 20px; fill: var(--accent); }
 .pick-faces { display: flex; flex: none; }
 .pick-faces .model-logo { width: 26px; height: 26px; border-radius: 50%; background: var(--surface); box-shadow: 0 0 0 2px var(--bg); }
 .pick-faces .model-logo + .model-logo { margin-left: -8px; }
@@ -656,6 +657,11 @@ html:has(dialog[open]) { overflow: hidden; scrollbar-gutter: stable; }
 .picker::backdrop { background: rgb(0 0 0 / 0.35); }
 .picker-head { display: flex; align-items: center; justify-content: space-between; }
 .picker-head h2 { margin: 0; font-size: 1.15rem; text-transform: none; letter-spacing: normal; }
+.picker-tools { display: flex; gap: var(--space-1); }
+.picker-new { display: grid; grid-template-columns: 1fr auto; gap: var(--space-1) var(--space-2); align-items: center; }
+.picker-new[hidden] { display: none; }
+.picker-error { grid-column: 1 / -1; margin: 0; font-size: 0.85rem; color: var(--danger); }
+.picker-error:empty { display: none; }
 .picker-icon { display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 50%; background: none; color: var(--text-muted); cursor: pointer; }
 .picker-icon:hover:not(:disabled) { background: var(--bg); color: var(--text); }
 .picker-icon:disabled { opacity: 0.3; cursor: default; }

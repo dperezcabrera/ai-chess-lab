@@ -232,8 +232,7 @@ function renderTakeback(state) {
   const viewing = viewPly !== null && viewPly < state.history.length;
   const myTurnThere = viewing && (viewPly % 2 === 0) === (state.human === 'white');
   button.disabled = viewing && !myTurnThere;
-  button.querySelector('span').textContent = viewing ? `Take back to move ${Math.floor(viewPly / 2) + 1}` : 'Take back';
-  button.title = viewing ? (myTurnThere ? 'Go back to this position and play on from here' : 'Pick a position where it is your move') : 'Take your last move back, with the reply it got';
+  button.title = viewing ? (myTurnThere ? `Take back to move ${Math.floor(viewPly / 2) + 1} and play on from here` : 'Pick a position where it is your move') : 'Take your last move back, with the reply it got';
 }
 
 function renderClockPause(state) {
@@ -244,7 +243,7 @@ function renderClockPause(state) {
   button.setAttribute('aria-pressed', String(Boolean(state.clock_paused)));
   button.querySelector('.icon-pause').hidden = Boolean(state.clock_paused);
   button.querySelector('.icon-play').hidden = !state.clock_paused;
-  button.querySelector('span').textContent = state.clock_paused ? 'Clock paused, play' : 'Pause my clock';
+  button.querySelector('span').textContent = state.clock_paused ? 'Resume' : 'Pause';
 }
 
 function render(state) {
@@ -369,7 +368,7 @@ async function runAnalysis() {
   } finally {
     if (analysis.abort === abort) analysis.abort = null;
     $('analysis-progress').hidden = true;
-    $('analyze-label').textContent = 'Analyze game';
+    $('analyze-label').textContent = 'Analyze';
     $('analyze').disabled = !current || current.history.length < 2 || analysis.abort !== null;
   }
 }
@@ -691,7 +690,18 @@ function modelSubtitle(model) {
 }
 
 const pickable = () => models.map((model) => ({ ...model, subtitle: modelSubtitle(model) }));
-const chevron = () => Object.assign(document.createElement('span'), { className: 'pick-chevron', textContent: 'Change' });
+const GEAR = 'M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6a.5.5 0 0 0 .1-.7l-2-3.4a.5.5 0 0 0-.6-.2l-2.5 1a7.3 7.3 0 0 0-1.7-1l-.4-2.6a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 0-.5.4l-.4 2.7a7.3 7.3 0 0 0-1.7 1l-2.5-1a.5.5 0 0 0-.6.2l-2 3.4a.5.5 0 0 0 .1.7L4.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6a.5.5 0 0 0-.1.7l2 3.4c.1.2.4.3.6.2l2.5-1c.5.4 1.1.7 1.7 1l.4 2.6c0 .3.2.5.5.5h4c.2 0 .5-.2.5-.4l.4-2.7c.6-.3 1.2-.6 1.7-1l2.5 1c.2.1.5 0 .6-.2l2-3.4a.5.5 0 0 0-.1-.7L19.4 13zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z';
+
+function chevron() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', 'pick-chevron');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', GEAR);
+  svg.append(path);
+  return svg;
+}
 
 function fillPickField(button, picked) {
   const words = Object.assign(document.createElement('span'), { className: 'pick-words' });
@@ -699,6 +709,7 @@ function fillPickField(button, picked) {
     const model = models.find((m) => m.id === picked[0]) || { id: picked[0], name: picked[0] };
     words.append(Object.assign(document.createElement('span'), { className: 'pick-name', textContent: model.name }), Object.assign(document.createElement('span'), { className: 'pick-sub', textContent: model.upstream ? modelSubtitle(model) : '' }));
     button.replaceChildren(logoNode(model), words, chevron());
+    button.title = 'Change';
     return;
   }
   const faces = Object.assign(document.createElement('span'), { className: 'pick-faces' });
@@ -707,6 +718,7 @@ function fillPickField(button, picked) {
   const summary = !names.length ? 'No model yet' : names.length <= 3 ? names.join(', ') : `${names.slice(0, 3).join(', ')} and ${names.length - 3} more`;
   words.append(Object.assign(document.createElement('span'), { className: 'pick-name', textContent: `${picked.length} model${picked.length === 1 ? '' : 's'}` }), Object.assign(document.createElement('span'), { className: 'pick-sub', textContent: summary }));
   button.replaceChildren(faces, words, chevron());
+  button.title = 'Change';
 }
 
 let standingsKey = null;
@@ -1088,7 +1100,7 @@ function renderParticipants() {
 }
 
 $('participants-field').addEventListener('click', async () => {
-  const picked = await pickModels({ heading: 'Players', models: pickable(), selected: chosenParticipants || [], multiple: true, logo: logoNode });
+  const picked = await pickModels({ heading: 'Players', models: pickable(), selected: chosenParticipants || [], multiple: true, logo: logoNode, add: addModel });
   if (!picked) return;
   chosenParticipants = picked;
   renderParticipants();
@@ -1242,7 +1254,7 @@ function renderSegments() {
 for (const button of sideForm.querySelectorAll('[data-pick]')) {
   button.addEventListener('click', async () => {
     const name = button.dataset.pick;
-    const picked = await pickModels({ heading: PICK_HEADINGS[name], models: pickable(), selected: [chosen[name]], logo: logoNode });
+    const picked = await pickModels({ heading: PICK_HEADINGS[name], models: pickable(), selected: [chosen[name]], logo: logoNode, add: addModel });
     if (!picked) return;
     chosen[name] = picked[0];
     renderSegments();
@@ -1256,12 +1268,7 @@ function syncSideDialog() {
   $('colour-segment').hidden = !play;
   $('white-segment').hidden = play;
   $('black-segment').hidden = play;
-  const side = sideForm.elements.side.value;
-  const opponent = modelName(chosen.opponent);
-  $('side-footnote').textContent = !play
-    ? `${modelName(chosen.white)} vs ${modelName(chosen.black)}`
-    : side === 'random' ? `A coin decides who plays White against ${opponent}` : side === 'white' ? `You move first against ${opponent}` : `${opponent} opens the game`;
-  $('side-start').textContent = play ? 'Start the game' : 'Start watching';
+  $('side-start').textContent = play ? 'Start' : 'Watch';
 }
 
 async function loadModels() {
@@ -1353,19 +1360,25 @@ $('settings-models').addEventListener('click', () => {
   $('models-upstream').focus();
 });
 $('models-close').addEventListener('click', () => $('models-dialog').close());
+/** Adds an OpenRouter model for this session and refreshes every list that shows models. */
+async function addModel(upstream) {
+  const response = await fetch('api/models', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ upstream }) });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || (data.detail && data.detail[0] && data.detail[0].msg) || 'The server rejected that model.');
+  models = data.models;
+  renderSegments();
+  syncSideDialog();
+  renderModels(data);
+  if (PAGE === 'tournament') renderParticipants();
+  return { models: pickable(), id: `llm:${upstream}` };
+}
+
 $('models-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   $('models-error').textContent = '';
   try {
-    const response = await fetch('api/models', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ upstream: $('models-upstream').value }) });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || (data.detail && data.detail[0] && data.detail[0].msg) || 'The server rejected that model.');
+    await addModel($('models-upstream').value.trim());
     $('models-upstream').value = '';
-    models = data.models;
-    renderSegments();
-    syncSideDialog();
-    renderModels(data);
-    if (PAGE === 'tournament') renderParticipants();
   } catch (error) {
     $('models-error').textContent = error.message;
   }

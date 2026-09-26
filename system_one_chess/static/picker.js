@@ -9,6 +9,10 @@ const next = document.getElementById('picker-next');
 const footer = document.getElementById('picker-footer');
 const count = document.getElementById('picker-count');
 const done = document.getElementById('picker-done');
+const addButton = document.getElementById('picker-add');
+const addForm = document.getElementById('picker-new');
+const upstream = document.getElementById('picker-upstream');
+const addError = document.getElementById('picker-error');
 const CHECK = 'M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z';
 
 const text = (tag, className, value) => Object.assign(document.createElement(tag), { className, textContent: value });
@@ -82,6 +86,30 @@ search.addEventListener('keydown', (event) => {
   const first = list.querySelector('.picker-row:not(:disabled)');
   if (first) first.click();
 });
+function showAdd(open) {
+  addForm.hidden = !open;
+  addButton.setAttribute('aria-expanded', String(open));
+  addError.textContent = '';
+  if (open) upstream.focus();
+  else search.focus();
+}
+
+addButton.addEventListener('click', () => showAdd(addForm.hidden));
+addForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  addError.textContent = '';
+  try {
+    const { models, id } = await session.add(upstream.value.trim());
+    session.models = models;
+    upstream.value = '';
+    showAdd(false);
+    search.value = '';
+    session.page = Math.floor(models.findIndex((model) => model.id === id) / PAGE_SIZE);
+    choose(id);
+  } catch (error) {
+    addError.textContent = error.message;
+  }
+});
 prev.addEventListener('click', () => { session.page -= 1; draw(); });
 next.addEventListener('click', () => { session.page += 1; draw(); });
 done.addEventListener('click', () => finish([...session.picked]));
@@ -89,11 +117,15 @@ document.getElementById('picker-close').addEventListener('click', () => finish(n
 dialog.addEventListener('cancel', (event) => { event.preventDefault(); finish(null); });
 
 /** Opens the model picker over the current dialog. `models` carry id, name, upstream, subtitle, ready and note;
- * resolves to the chosen ids, or null when closed without choosing. */
-export function pickModels({ heading, models, selected = [], multiple = false, logo }) {
+ * resolves to the chosen ids, or null when closed without choosing. With `add`, a + button takes an OpenRouter id:
+ * `add(upstream)` resolves to the new `{ models, id }` and the model is chosen. */
+export function pickModels({ heading, models, selected = [], multiple = false, logo, add = null }) {
   if (session) finish(null);
   return new Promise((resolve) => {
-    session = { models, picked: new Set(selected), multiple, logo, page: 0, resolve };
+    session = { models, picked: new Set(selected), multiple, logo, add, page: 0, resolve };
+    addButton.hidden = !add;
+    addForm.hidden = true;
+    addButton.setAttribute('aria-expanded', 'false');
     const first = models.findIndex((model) => selected.includes(model.id));
     session.page = !multiple && first >= 0 ? Math.floor(first / PAGE_SIZE) : 0;
     title.textContent = heading;

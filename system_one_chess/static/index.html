@@ -77,7 +77,7 @@
       <button id="clock-pause" class="button button-ghost button-small" type="button" hidden aria-pressed="false" title="Stop your clock while you think; it runs again when you move">
         <svg class="icon-pause" viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="M6 4h4v16H6zm8 0h4v16h-4z"/></svg>
         <svg class="icon-play" viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true" hidden><path d="M8 5v14l11-7z"/></svg>
-        <span>Pause my clock</span>
+        <span>Pause</span>
       </button>
       <button id="flip-board" class="icon-button icon-button-outline" type="button" aria-label="Flip the board" title="Flip the board" aria-pressed="false">
         <svg viewBox="0 0 24 24" width="1.25em" height="1.25em" fill="currentColor" aria-hidden="true"><path d="M12 4V1L8 5l4 4V6a6 6 0 0 1 6 6h2a8 8 0 0 0-8-8zm0 14a6 6 0 0 1-6-6H4a8 8 0 0 0 8 8v3l4-4-4-4v3z"/></svg>
@@ -99,7 +99,7 @@
       <span id="status-text">Loading</span>
       <button id="pardon" class="button button-small" type="button" hidden title="Forgive the illegal moves and let the game go on">
         <svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
-        Let it continue
+        Continue
       </button>
       <button id="retry" class="button button-small" type="button" hidden>
         <svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg>
@@ -162,7 +162,7 @@
           Data
         </a>
       </div>
-      <p class="side-manage"><button id="tournament-add-round" class="link-button" type="button" hidden>Add a round</button> <button id="tournament-stop" class="link-button" type="button" hidden>Stop the tournament</button></p>
+      <p class="side-manage"><button id="tournament-add-round" class="link-button" type="button" hidden>Add round</button> <button id="tournament-stop" class="link-button" type="button" hidden>Stop</button></p>
     </section>
 
     <section class="ranking-section" id="ranking-section" aria-labelledby="ranking-title">
@@ -213,7 +213,7 @@
         </div>
       <button id="analyze" class="button" type="button" disabled>
         <svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="M4 20h16v-2H4v2zm2-4h3V9H6v7zm5 0h3V4h-3v12zm5 0h3v-5h-3v5z"/></svg>
-        <span id="analyze-label">Analyze game</span>
+        <span id="analyze-label">Analyze</span>
       </button>
       </div>
     </header>
@@ -470,7 +470,7 @@
 
     <footer class="pgn-footer">
       <button id="settings-models" class="button button-ghost" type="button" title="The models a game or a tournament can pick from, and how to add an LLM from OpenRouter">Models</button>
-      <button id="settings-forget" class="button button-ghost" type="button">Remove my key</button>
+      <button id="settings-forget" class="button button-ghost" type="button">Forget key</button>
       <button id="settings-save" class="button" type="submit">Save</button>
     </footer>
   </form>
@@ -552,7 +552,6 @@
         </div>
       </fieldset>
 
-      <p class="side-manage">More models come from the models file or from <strong>Models</strong> in Settings (the gear icon).</p>
     </div>
 
     <div class="side-body" id="panel-saved" role="tabpanel" aria-labelledby="tab-saved" hidden>
@@ -571,10 +570,23 @@
 <dialog id="picker-dialog" class="picker" aria-labelledby="picker-title">
   <header class="picker-head">
     <h2 id="picker-title">Choose a model</h2>
-    <button id="picker-close" class="picker-icon" type="button" aria-label="Close">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7l-1.4-1.4L9.2 12 2.9 5.7l1.4-1.4 6.3 6.3 6.3-6.3z"/></svg>
-    </button>
+    <div class="picker-tools">
+      <button id="picker-add" class="picker-icon" type="button" aria-label="Add a model" title="Add a model" aria-expanded="false" aria-controls="picker-new">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 11h-6V5h-2v6H5v2h6v6h2v-6h6z"/></svg>
+      </button>
+      <button id="picker-close" class="picker-icon" type="button" aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7l-1.4-1.4L9.2 12 2.9 5.7l1.4-1.4 6.3 6.3 6.3-6.3z"/></svg>
+      </button>
+    </div>
   </header>
+  <form id="picker-new" class="picker-new" hidden>
+    <label class="picker-search">
+      <span class="visually-hidden">OpenRouter model id</span>
+      <input id="picker-upstream" type="text" placeholder="vendor/model on OpenRouter" autocomplete="off" spellcheck="false" required>
+    </label>
+    <button class="button" type="submit">Add</button>
+    <p id="picker-error" class="picker-error" role="alert"></p>
+  </form>
   <label class="picker-search">
     <span class="visually-hidden">Search models</span>
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4a6 6 0 0 1 4.8 9.6l4.8 4.8-1.4 1.4-4.8-4.8A6 6 0 1 1 10 4zm0 2a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/></svg>
@@ -602,8 +614,8 @@
       <fieldset class="segment" id="mode-segment">
         <legend>Mode</legend>
         <div class="segment-options">
-          <label class="segment-option"><input type="radio" name="mode" value="play" checked><span>Play against a model</span></label>
-          <label class="segment-option"><input type="radio" name="mode" value="watch"><span>Watch two models</span></label>
+          <label class="segment-option"><input type="radio" name="mode" value="play" checked><span>You vs AI</span></label>
+          <label class="segment-option"><input type="radio" name="mode" value="watch"><span>AI vs AI</span></label>
         </div>
       </fieldset>
 
@@ -631,14 +643,12 @@
         </div>
       </fieldset>
 
-      <p class="side-manage">More models come from the models file or from <strong>Models</strong> in Settings (the gear icon).</p>
       <p id="side-error" class="settings-error" role="alert"></p>
     </div>
 
     <footer class="side-footer">
-      <p class="side-footnote" id="side-footnote"></p>
       <button id="side-cancel" class="button button-ghost" type="button">Cancel</button>
-      <button id="side-start" class="button" type="submit">Start the game</button>
+      <button id="side-start" class="button" type="submit">Start</button>
     </footer>
   </form>
 </dialog>
