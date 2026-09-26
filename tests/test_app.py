@@ -1321,7 +1321,7 @@ def test_a_round_can_be_added_to_a_running_or_finished_tournament(make_container
 def test_options_say_when_a_move_draws_by_repetition_stalemate_or_material():
     import chess
 
-    from system_one_chess.jev import _state, describe, material_balance
+    from system_one_chess.jev import _state, describe, material_balance, memory_note
 
     board = chess.Board()
     for san in ("Nf3", "Nf6", "Ng1"):
@@ -1341,6 +1341,13 @@ def test_options_say_when_a_move_draws_by_repetition_stalemate_or_material():
     assert "lets the opponent" not in describe(board, board.parse_san("e4")), "a pawn move leaves nothing to repeat"
     fifty = chess.Board("7k/8/8/8/8/8/8/K6R w - - 98 80")
     assert "by the fifty-move rule" in describe(fifty, fifty.parse_san("Rh2"))
+    assert memory_note(describe(fifty, fifty.parse_san("Rh2"))) == "lets opponent draw"
+    assert memory_note(describe(fifty, fifty.parse_san("Kb1"))) == "lets opponent draw"
+    assert memory_note("rook h1 to h2, gives check") is None, "what the board shows is left to the model"
+    state = _state(fifty)
+    assert "after 2 more" in state["fifty_move_rule"] and list(state).index("fifty_move_rule") < list(state).index(
+        "moves_so_far"
+    )
 
     stalemate = chess.Board("7k/5Q2/6K1/8/8/8/8/8 w - - 0 1")
     assert "STALEMATE" in describe(stalemate, stalemate.parse_san("Qe6"))
@@ -1348,7 +1355,11 @@ def test_options_say_when_a_move_draws_by_repetition_stalemate_or_material():
     material = chess.Board("7k/8/8/8/8/8/8/K6R w - - 0 1")
     assert material_balance(material) == "you are up 5 points of material"
     state = _state(material)
-    assert state["material_balance"].startswith("you are up") and state["halfmoves_since_capture_or_pawn_move"] == 0
+    assert (
+        state["material_balance"].startswith("you are up")
+        and state["fifty_move_rule"].startswith("0 half-moves")
+        and "after 100 more" in state["fifty_move_rule"]
+    )
     down = chess.Board("7k/8/8/8/8/8/8/K6R b - - 0 1")
     assert material_balance(down) == "you are down 5 points of material"
 

@@ -204,10 +204,35 @@ def _state(board: chess.Board) -> dict:
         "side_to_move": "white" if board.turn else "black",
         "fen": board.fen(),
         "board": str(board),
-        "moves_so_far": chess.Board().variation_san(board.move_stack) if board.move_stack else "",
         "material_balance": material_balance(board),
-        "halfmoves_since_capture_or_pawn_move": board.halfmove_clock,
+        "fifty_move_rule": fifty_move_rule(board),
+        "moves_so_far": chess.Board().variation_san(board.move_stack) if board.move_stack else "",
     }
+
+
+def fifty_move_rule(board: chess.Board) -> str:
+    """How close the automatic draw is: here a game ends at once when fifty moves pass without a capture or a pawn
+    move, where the rules of chess only let a player claim it. Placed before the moves so a short reader keeps it."""
+    left = 100 - board.halfmove_clock
+    return (
+        f"{board.halfmove_clock} half-moves without a capture or pawn move; "
+        f"the game is drawn automatically after {left} more unless someone captures or moves a pawn"
+    )
+
+
+MEMORY_NOTES = (
+    ("third repetition", "draw by repetition"),
+    ("DRAW by the fifty-move rule", "draw by fifty moves"),
+    ("lets the opponent end the game in a DRAW", "lets opponent draw"),
+    ("repeats an earlier position", "repeats a position"),
+)
+
+
+def memory_note(description: str) -> str | None:
+    """The part of a move's description that needs the game's history rather than the board, in a few words, for
+    a reader too short for full descriptions: repetitions and the fifty-move rule."""
+    notes = [note for marker, note in MEMORY_NOTES if marker in description]
+    return ", ".join(dict.fromkeys(notes)) or None
 
 
 PIECE_VALUES = {chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3, chess.ROOK: 5, chess.QUEEN: 9}
@@ -281,7 +306,7 @@ class JevMoveChooser:
             if not gateway.ready:
                 raise JevError(NO_KEY)
         if gateway.local and len(criteria) > 8:
-            criteria = dict.fromkeys(criteria)
+            criteria = {san: memory_note(text or "") for san, text in criteria.items()}
         state = _state(board)
         question = {"type": "choice", "instructions": instructions, "criteria": criteria}
         started = time.perf_counter()
