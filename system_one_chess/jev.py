@@ -143,41 +143,25 @@ def drawing_reply(board: chess.Board) -> str | None:
     return None
 
 
-def describe(board: chess.Board, move: chess.Move) -> str:
-    if board.is_castling(move):
-        text = "castle kingside" if board.is_kingside_castling(move) else "castle queenside"
-    else:
-        piece = chess.piece_name(board.piece_type_at(move.from_square))
-        text = f"{piece} {chess.square_name(move.from_square)} to {chess.square_name(move.to_square)}"
-        if board.is_en_passant(move):
-            text += ", captures pawn en passant"
-        elif board.is_capture(move):
-            text += f", captures {chess.piece_name(board.piece_type_at(move.to_square))}"
-        if move.promotion:
-            text += f", promotes to {chess.piece_name(move.promotion)}"
+def describe(board: chess.Board, move: chess.Move) -> str | None:
+    """What a move does that the board and the move's own name cannot show, because it depends on the game's
+    history: repetitions and the fifty-move rule. Captures, checks, mates and hanging pieces are left for the model
+    to see; None when there is nothing to add."""
     board.push(move)
-    if board.is_checkmate():
-        text += ", CHECKMATE"
-    elif board.is_stalemate():
-        text += ", STALEMATE: the game ends in a draw"
-    elif board.is_repetition(3):
-        text += ", third repetition of the position: the game ends in a DRAW"
-    elif board.is_insufficient_material():
-        text += ", DRAW by insufficient material"
-    elif board.is_fifty_moves():
-        text += ", DRAW by the fifty-move rule"
-    else:
-        if board.is_check():
-            text += ", gives check"
+    try:
+        if board.is_repetition(3):
+            return "DRAW: the position appears a third time"
+        if board.is_fifty_moves():
+            return "DRAW by the fifty-move rule"
+        notes = []
         if board.is_repetition(2):
-            text += ", repeats an earlier position (a third time would be a draw)"
+            notes.append("repeats a position; a third time would draw")
         draw = drawing_reply(board)
         if draw:
-            text += f", lets the opponent end the game in a DRAW at once {draw}"
-    if board.is_attacked_by(board.turn, move.to_square):
-        text += ", moved piece can be captured next turn"
-    board.pop()
-    return text
+            notes.append(f"lets the opponent draw at once {draw}")
+        return "; ".join(notes) or None
+    finally:
+        board.pop()
 
 
 def move_aliases(board: chess.Board, options: dict[str, chess.Move]) -> dict[str, str]:
@@ -204,7 +188,6 @@ def _state(board: chess.Board) -> dict:
         "side_to_move": "white" if board.turn else "black",
         "fen": board.fen(),
         "board": str(board),
-        "material_balance": material_balance(board),
         "fifty_move_rule": fifty_move_rule(board),
         "moves_so_far": chess.Board().variation_san(board.move_stack) if board.move_stack else "",
     }
@@ -218,34 +201,6 @@ def fifty_move_rule(board: chess.Board) -> str:
         f"{board.halfmove_clock} half-moves without a capture or pawn move; "
         f"the game is drawn automatically after {left} more unless someone captures or moves a pawn"
     )
-
-
-MEMORY_NOTES = (
-    ("third repetition", "draw by repetition"),
-    ("DRAW by the fifty-move rule", "draw by fifty moves"),
-    ("lets the opponent end the game in a DRAW", "lets opponent draw"),
-    ("repeats an earlier position", "repeats a position"),
-)
-
-
-def memory_note(description: str) -> str | None:
-    """The part of a move's description that needs the game's history rather than the board, in a few words, for
-    a reader too short for full descriptions: repetitions and the fifty-move rule."""
-    notes = [note for marker, note in MEMORY_NOTES if marker in description]
-    return ", ".join(dict.fromkeys(notes)) or None
-
-
-PIECE_VALUES = {chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3, chess.ROOK: 5, chess.QUEEN: 9}
-
-
-def material_balance(board: chess.Board) -> str:
-    """Material from the side to move's point of view, so a model knows whether a draw is a gift or a loss."""
-    own = sum(v * len(board.pieces(p, board.turn)) for p, v in PIECE_VALUES.items())
-    other = sum(v * len(board.pieces(p, not board.turn)) for p, v in PIECE_VALUES.items())
-    diff = own - other
-    if diff == 0:
-        return "equal material"
-    return f"you are {'up' if diff > 0 else 'down'} {abs(diff)} point{'s' if abs(diff) != 1 else ''} of material"
 
 
 @component
@@ -282,7 +237,7 @@ class JevMoveChooser:
         self,
         board: chess.Board,
         instructions: str,
-        criteria: dict[str, str],
+        criteria: dict[str, str | None],
         credentials: SessionCredentials | None = None,
         model: str = "",
         illegal_so_far: int = 0,
@@ -305,8 +260,6 @@ class JevMoveChooser:
             gateway = self._provider.gateway(credentials, model)
             if not gateway.ready:
                 raise JevError(NO_KEY)
-        if gateway.local and len(criteria) > 8:
-            criteria = {san: memory_note(text or "") for san, text in criteria.items()}
         state = _state(board)
         question = {"type": "choice", "instructions": instructions, "criteria": criteria}
         started = time.perf_counter()
@@ -396,8 +349,12 @@ class JevMoveChooser:
         if len(moves) == 1:
             san = board.san(moves[0])
             return Decision(moves[0], san, [(san, 1.0)], {san: 1.0}, [san], 0, 0, 0.0, 0.0, forced=True)
-        options = {board.san(m): m for m in moves}
+        options = {board.san(m).rstrip("+#"): m for m in moves}
+        full = {name: board.san(m) for name, m in options.items()}
         aliases = move_aliases(board, options)
+        for name, san in full.items():
+            if san != name:
+                aliases.setdefault(san, name)
         side = "white" if board.turn else "black"
         instructions = (
             f"You are a strong chess player playing {side}. Which move is best? "
@@ -416,10 +373,10 @@ class JevMoveChooser:
         )
         return Decision(
             move=options[answer.choice],
-            san=answer.choice,
-            top=sorted(answer.probabilities.items(), key=lambda kv: -kv[1])[:3],
-            probabilities=answer.probabilities,
-            asked=list(options),
+            san=full[answer.choice],
+            top=sorted(((full.get(k, k), v) for k, v in answer.probabilities.items()), key=lambda kv: -kv[1])[:3],
+            probabilities={full.get(k, k): v for k, v in answer.probabilities.items()},
+            asked=list(full.values()),
             input_tokens=answer.input_tokens,
             output_tokens=answer.output_tokens,
             cost_usd=answer.cost_usd,

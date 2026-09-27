@@ -26,11 +26,12 @@ def test_a_single_label_in_plain_text_is_accepted_but_ambiguity_is_not():
     assert parse_choice("Nothing to see.", LABELS) is None
 
 
-def test_the_prompt_lists_every_option_with_its_description():
-    text = render({"fen": "x"}, "Which move?", {"e4": "pawn e2 to e4", "Nf3": None})
+def test_the_prompt_lists_every_label_and_notes_only_the_options_that_have_one():
+    text = render({"fen": "x"}, "Which move?", {"e4": "repeats a position", "Nf3": None})
     assert text.startswith("Which move?") and '"fen": "x"' in text
-    assert "- e4: pawn e2 to e4" in text and "- Nf3\n" in text + "\n"
     assert 'Legal labels:\n["e4", "Nf3"]' in text
+    assert text.endswith("Notes on some options:\n- e4: repeats a position") and "- Nf3" not in text
+    assert "Notes" not in render({"fen": "x"}, "Which move?", {"e4": None}), "no notes, no empty section"
 
 
 def test_chess_aliases_cover_uci_check_signs_castling_and_captures():

@@ -74,14 +74,23 @@ def test_full_turn_cycle(app):
     assert state["history"] == [] and state["jevs_turn"] and state["usage"]["calls"] == 0
 
 
-def test_jev_is_offered_checkmate_as_such(app):
-    handler, _ = jev_stub(lambda criteria: next((k for k, v in criteria.items() if "CHECKMATE" in v), "e5"))
+def test_checkmate_is_offered_unlabelled(app):
+    offered = []
+
+    def pick(criteria):
+        offered.append(criteria)
+        return "Qh4" if "Qh4" in criteria else "e5"
+
+    handler, _ = jev_stub(pick)
     client = app(handler)
     for origin, target in (("f2", "f3"), ("g2", "g4")):
         client.post("/api/move", json={"from": origin, "to": target})
         state = client.post("/api/jev").json()
     assert state["history"] == ["f3", "e5", "g4", "Qh4#"] and state["over"]
     assert state["result"] == "0-1 by checkmate" and state["dests"] == {}
+    last = offered[-1]
+    assert "Qh4" in last and not any(name.endswith(("+", "#")) for name in last), "the name does not give the mate away"
+    assert set(last.values()) == {None}, "nor does a description: nothing here needs the game's history"
 
 
 def test_game_exports_as_pgn(app):
@@ -130,11 +139,6 @@ def test_each_session_plays_its_own_game(app, make_client):
     assert alice.get("/api/state").json()["game_id"] != bob.get("/api/state").json()["game_id"]
     first = alice.get("/api/state").json()["game_id"]
     assert alice.post("/api/new", json={"human": "white"}).json()["game_id"] != first
-
-
-def test_en_passant_is_described_as_a_capture():
-    board = chess.Board("4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 2")
-    assert "en passant" in describe(board, chess.Move.from_uci("e5d6"))
 
 
 def test_page_and_assets_are_served(app):
@@ -512,7 +516,7 @@ def test_an_llm_plays_a_colour_through_the_chat_api_and_its_cost_is_counted(make
     request = seen[0]
     assert request["url"].endswith("/v1/chat/completions") and request["model"] == "openai/gpt-5-mini"
     assert request["reasoning"] == {"effort": "medium"}, "LLM_REASONING_EFFORT applies to a model without its own entry"
-    assert '"choice"' in request["messages"][0]["content"] and "- e5" in request["messages"][1]["content"]
+    assert '"choice"' in request["messages"][0]["content"] and '"e5"' in request["messages"][1]["content"]
 
     client.post("/api/move", json={"from": "g1", "to": "f3"})
     state = client.post("/api/jev").json()
@@ -1318,50 +1322,38 @@ def test_a_round_can_be_added_to_a_running_or_finished_tournament(make_container
     assert client.delete("/api/tournament").json()["active"] is False
 
 
-def test_options_say_when_a_move_draws_by_repetition_stalemate_or_material():
+def test_options_say_only_what_needs_the_game_history_repetitions_and_the_fifty_move_rule():
     import chess
 
-    from system_one_chess.jev import _state, describe, material_balance, memory_note
+    from system_one_chess.jev import _state
 
     board = chess.Board()
     for san in ("Nf3", "Nf6", "Ng1"):
         board.push_san(san)
-    assert "repeats an earlier position" in describe(board, board.parse_san("Ng8")), "back to the start, a second time"
-    assert "repetition" not in describe(board, board.parse_san("e5"))
+    assert "repeats a position" in describe(board, board.parse_san("Ng8")), "back to the start, a second time"
+    assert describe(board, board.parse_san("e5")) is None
     for san in ("Ng8", "Nf3", "Nf6", "Ng1"):
         board.push_san(san)
-    text = describe(board, board.parse_san("Ng8"))
-    assert "third repetition" in text and "DRAW" in text, "back to the start a third time ends the game"
+    assert describe(board, board.parse_san("Ng8")) == "DRAW: the position appears a third time"
 
     board = chess.Board()
     for san in ("Nf3", "Nf6", "Ng1", "Ng8", "Nf3", "Nf6"):
         board.push_san(san)
-    text = describe(board, board.parse_san("Ng1"))
-    assert "lets the opponent end the game in a DRAW at once by repeating" in text, "then Ng8 is the third time"
-    assert "lets the opponent" not in describe(board, board.parse_san("e4")), "a pawn move leaves nothing to repeat"
+    assert "lets the opponent draw at once by repeating" in describe(board, board.parse_san("Ng1")), "then Ng8"
+    assert describe(board, board.parse_san("e4")) is None, "a pawn move leaves nothing to repeat"
     fifty = chess.Board("7k/8/8/8/8/8/8/K6R w - - 98 80")
-    assert "by the fifty-move rule" in describe(fifty, fifty.parse_san("Rh2"))
-    assert memory_note(describe(fifty, fifty.parse_san("Rh2"))) == "lets opponent draw"
-    assert memory_note(describe(fifty, fifty.parse_san("Kb1"))) == "lets opponent draw"
-    assert memory_note("rook h1 to h2, gives check") is None, "what the board shows is left to the model"
+    assert describe(fifty, fifty.parse_san("Rh2")) == "lets the opponent draw at once by the fifty-move rule"
     state = _state(fifty)
-    assert "after 2 more" in state["fifty_move_rule"] and list(state).index("fifty_move_rule") < list(state).index(
-        "moves_so_far"
-    )
+    assert "after 2 more" in state["fifty_move_rule"]
+    assert list(state).index("fifty_move_rule") < list(state).index("moves_so_far"), "a short reader keeps it"
 
-    stalemate = chess.Board("7k/5Q2/6K1/8/8/8/8/8 w - - 0 1")
-    assert "STALEMATE" in describe(stalemate, stalemate.parse_san("Qe6"))
-    assert "CHECKMATE" in describe(stalemate, stalemate.parse_san("Qg7#"))
-    material = chess.Board("7k/8/8/8/8/8/8/K6R w - - 0 1")
-    assert material_balance(material) == "you are up 5 points of material"
-    state = _state(material)
-    assert (
-        state["material_balance"].startswith("you are up")
-        and state["fifty_move_rule"].startswith("0 half-moves")
-        and "after 100 more" in state["fifty_move_rule"]
-    )
-    down = chess.Board("7k/8/8/8/8/8/8/K6R b - - 0 1")
-    assert material_balance(down) == "you are down 5 points of material"
+    on_the_board = chess.Board("7k/5Q2/6K1/8/8/8/8/8 w - - 0 1")
+    assert describe(on_the_board, on_the_board.parse_san("Qe6")) is None, "a stalemate is on the board"
+    assert describe(on_the_board, on_the_board.parse_san("Qg7#")) is None, "so is a mate"
+    en_passant = chess.Board("4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 2")
+    assert describe(en_passant, chess.Move.from_uci("e5d6")) is None, "and a capture"
+    state = _state(chess.Board("7k/8/8/8/8/8/8/K6R w - - 0 1"))
+    assert "material_balance" not in state and "after 100 more" in state["fifty_move_rule"]
 
 
 def test_a_finished_board_of_the_current_round_can_be_rewound_and_played_on(make_container, make_client):

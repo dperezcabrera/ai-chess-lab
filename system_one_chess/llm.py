@@ -21,7 +21,7 @@ from .retry import post_with_retries
 
 SYSTEM_PROMPT = (
     "You are playing a game. You will receive the game state, the exact list of legal labels as a JSON array, "
-    "and a description of each one. Only those labels are legal moves. "
+    "and notes on the options that have any. Only those labels are legal moves. "
     'Reply with a JSON object only: {"choice": "<label>"}, copying one label verbatim. No other text. '
     "A reply that is not one of the labels is an illegal move, and two illegal moves in a game lose it, as in chess."
 )
@@ -132,9 +132,10 @@ def reply_text(response: dict) -> str:
 
 
 def render(state: dict, instructions: str, criteria: dict[str, str | None]) -> str:
-    options = "\n".join(f"- {label}" + (f": {text}" if text else "") for label, text in criteria.items())
+    notes = "\n".join(f"- {label}: {text}" for label, text in criteria.items() if text)
     labels = json.dumps(list(criteria))
-    return f"{instructions}\n\nState:\n{json.dumps(state, indent=1)}\n\nLegal labels:\n{labels}\n\nOptions:\n{options}"
+    prompt = f"{instructions}\n\nState:\n{json.dumps(state, indent=1)}\n\nLegal labels:\n{labels}"
+    return f"{prompt}\n\nNotes on some options:\n{notes}" if notes else prompt
 
 
 @component
