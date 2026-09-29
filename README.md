@@ -1,17 +1,17 @@
 # AI chess battle
 
-`system-one-chess`: play chess in your browser against [Jev](https://typesafe.ai), TypeSafe AI's System One model, called through [Vercel AI Gateway](https://vercel.com/ai-gateway/models/jev) or [OpenRouter](https://openrouter.ai/typesafe).
+`ai-chess-lab`: LLMs, System One models and you play chess in the browser, one game at a time or in Swiss tournaments and full leagues, with every move, token, second and dollar on the record and Stockfish analysing the games in your browser. The first battle, 16 players and 72 games, is [in the repository](#the-first-battle-in-the-repository).
 
-Jev does not generate text. It answers typed questions about a state with calibrated probabilities. That maps cleanly onto chess: every turn is **one Choice question whose options are the legal moves**. A chess position has at most 218 legal moves and a Choice accepts up to 255 options, so a single request always fits and Jev can never return an illegal move. A typical reply takes about 300 ms.
+A System One model such as [Jev](https://typesafe.ai), TypeSafe AI's, called through [Vercel AI Gateway](https://vercel.com/ai-gateway/models/jev) or [OpenRouter](https://openrouter.ai/typesafe), does not generate text. It answers typed questions about a state with calibrated probabilities, which maps cleanly onto chess: every turn is **one Choice question whose options are the legal moves**. A chess position has at most 218 legal moves and a Choice accepts up to 255 options, so a single request always fits and the model can never play an illegal move. An LLM gets the same position and the same list of moves through the chat API, and has to name one.
 
-![Choosing a side](screenshots/choose-side.png)
+![The last round of the 72-game tournament: GPT-6 Astra mates Grok 4.7](screenshots/tournament.png)
 
-![Jev playing both sides](screenshots/game.png)
+![Starting a game: you against a model, or two models against each other](screenshots/new-game.png)
 
 ## What you get
 
 - **A real board.** [chessground](https://github.com/lichess-org/chessground), the open source board from lichess: drag or click, legal moves only.
-- **Jev's confidence, every move.** The side panel shows the three options Jev weighed and the probability it gave each one.
+- **Tournaments and leagues.** Swiss rounds, or everyone against everyone once or twice, played by the server and saved after every move, with standings, tie-breaks and a grid of every board of the round. See [The tournament page](#the-tournament-page).
 - **Cost and latency, live.** The footer shows calls, tokens, average latency, illegal answers and dollars for the current game, straight from the gateway's usage data, one row per model when two of them play and a total underneath. Jev playing both sides costs about $0.00005 per move at 300 to 400 ms each: a 20-move game for $0.0009.
 - **Engine analysis in your browser.** Stockfish 19 (WebAssembly, 1.8 MB) evaluates the game locally: evaluation chart (click a point, or step with the arrow keys, and the board shows that position), average centipawn loss (how many hundredths of a pawn each move gives away, see [Reading the numbers](#reading-the-numbers)), inaccuracies, mistakes and blunders per player. No server cost, no extra API calls. Depth is configurable.
 - **Is Jev better than chance?** For every position, Stockfish scores all legal moves and ranks the one that was played. A random mover sits on the 50th percentile by definition, so anything above that is signal. Two breakdowns sit next to what a random mover would score. By distance: the share of moves within 10, 25, 50, 100 and 200 centipawns of the best one, the absolute reference. By rank: top move, top 3 moves, top 10%, 20%, 30% and 50% of the legal moves, each with its average and its worst loss, because a top range can still hold a terrible move when a position has only one good one. The ranges nest: a top share is never smaller than the top 3 moves, so with the 20 to 40 legal moves of a typical position the top 10% is those 3 or 4 moves, and a wider range always contains the narrower ones.
@@ -20,9 +20,9 @@ Jev does not generate text. It answers typed questions about a state with calibr
 - **PGN export**: a dialog shows the game in Portable Game Notation, ready to copy to the clipboard or download as a file.
 - **One game per browser session**, so several people can play on the same server.
 
-![Analysis of a Jev-versus-Jev game](screenshots/analysis.png)
+![Analysis of Grok 4.7 against GPT-6 Astra](screenshots/analysis.png)
 
-In the game above Jev plays both sides and draws by repetition after 10 moves each. As Black it lands on the 80th percentile and loses 114 centipawns per move where a random mover would lose 402; as White, the 63rd percentile and 122 against 128. Black kept 70% of its moves within 50 centipawns of the best one (random: 20%); White 50% (random: 37%). They found the engine's top move 20% and 40% of the time (random: 4% and 15%). Better than chance, and still not a chess player. The top 3 moves in that game include one 1306 centipawns behind the best, which is why every range shows its worst loss. Jev is not fully deterministic, so your numbers will differ.
+In the game above, from the last round of the tournament, the two sides play level for thirteen moves until Grok, with White, leaves its queen to be taken with check after 14. Bd3, the single blunder of the game; GPT-6 Astra never lets go and mates on move 26. Astra lands on the 87th percentile and loses 14 centipawns per move where a random mover would lose 252; Grok, the 79th percentile and 49 against 206. Both found the engine's top move 73% of the time, where a random mover would have found it 37% of the time in Grok's positions and 21% in Astra's, and kept 81% of their moves within 10 centipawns of the best one. One bad move decides a game that was otherwise played at the same level, which is why every table keeps the worst loss next to the averages.
 
 > Jev is a fast classifier, not a chess engine. Expect plausible moves, not strong ones. This project is a demo of the System One decision pattern.
 
