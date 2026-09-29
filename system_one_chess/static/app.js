@@ -157,6 +157,7 @@ const formatClock = (seconds) => {
 };
 
 const clockText = (state, colour) => {
+  if (state.usage_by_colour && state.usage_by_colour[colour].seconds === null) return '\u2013';
   const used = clockSeconds(state, colour);
   return state.time_limit ? formatClock(state.time_limit - used) : formatClock(used);
 };
@@ -909,10 +910,14 @@ function miniNode(board, view, roundNumber) {
       el.replaceChildren(playerNode(player), Object.assign(document.createElement('span'), { className: 'mini-clock' }));
       el.dataset.key = key;
     }
+    const clock = el.querySelector('.mini-clock');
+    if (board.clock[colour] === null) {
+      clock.textContent = '\u2013';
+      return;
+    }
     const live = !board.over && board.turn === colour ? (board.thinking_seconds || 0) : 0;
     const used = board.clock[colour] + live;
-    if (board.clock_paused && board.turn === colour) el.querySelector('.mini-clock').title = 'clock paused';
-    const clock = el.querySelector('.mini-clock');
+    if (board.clock_paused && board.turn === colour) clock.title = 'clock paused';
     clock.classList.toggle('active', !board.over && board.turn === colour);
     clock.classList.toggle('low', Boolean(board.time_limit) && board.time_limit - used < 300);
     clock.textContent = board.time_limit ? formatClock(board.time_limit - used) : formatClock(used);

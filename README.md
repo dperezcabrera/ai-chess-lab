@@ -197,6 +197,14 @@ So the same board hosts you against a cheap LLM, a frontier LLM against Jev, or 
 | GET | `/api/tournaments` | | The saved tournaments, newest first |
 | POST | `/api/tournaments/{id}/resume` | | Load a saved tournament into this session and play on |
 
+## The first battle, in the repository
+
+The 16-player tournament of September 2026 is in [`results/20260922-141451-7ccf.json`](results/20260922-141451-7ccf.json): 14 LLMs, Jev and a human, 9 Swiss rounds, 72 games, with every move and who decided it, the tokens, seconds and cost of each model call, the illegal answers and their text, the probabilities Jev gave, the results and the standings with their tie-breaks. The human's thinking times are left out. To replay it in the app, start it on that folder and open **Tournament**, **Saved**, **Review**:
+
+```sh
+TOURNAMENT_DIR=results system-one-chess
+```
+
 ## How it works
 
 Each Jev turn sends one request to the gateway's System One endpoint, `POST https://ai-gateway.vercel.sh/typesafe/v1/systemone` or `POST https://openrouter.ai/api/v1/systemone`. Both take the same body:
