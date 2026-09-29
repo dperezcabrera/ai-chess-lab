@@ -426,7 +426,7 @@ class Game:
                 model = self._registry.get(self._models[color], self._credentials, self._session_models)
                 return f"{model.name} ({model.upstream})"
 
-            game.headers["Event"] = "system-one-chess"
+            game.headers["Event"] = "ai-chess-lab"
             game.headers["Site"] = "https://github.com/dperezcabrera/ai-chess-lab"
             game.headers["Date"] = datetime.now(UTC).strftime("%Y.%m.%d")
             game.headers["White"] = "Human" if self._human == "white" else player(chess.WHITE)
@@ -436,7 +436,7 @@ class Game:
                 game.headers["Termination"] = "illegal moves"
             elif self._timed_out is not None:
                 game.headers["Termination"] = "time forfeit"
-            return f"system-one-chess-{self._id}.pgn", str(game) + "\n"
+            return f"ai-chess-lab-{self._id}.pgn", str(game) + "\n"
 
     def _snapshot(self) -> dict:
         board = self._board

@@ -50,8 +50,8 @@ Available tags: `latest` and the version number, such as `0.5.0`.
 To build the image yourself instead:
 
 ```sh
-docker build -t system-one-chess .
-docker run --rm -p 127.0.0.1:8000:8000 -e OPENROUTER_API_KEY system-one-chess
+docker build -t ai-chess-lab .
+docker run --rm -p 127.0.0.1:8000:8000 -e OPENROUTER_API_KEY ai-chess-lab
 ```
 
 Or keep it in a `.env` file (see below) and use `--env-file .env`.
@@ -77,7 +77,7 @@ One difference matters when comparing the two models. Laya has a budget of 192 t
 ```sh
 git clone https://github.com/jaredpalmer/kev.git && cd kev && uv sync --extra serve
 uv run --extra serve python -m kev.serve --run jaredpalmer/kev-0.8b --port 8009
-KEV_BASE_URL=http://127.0.0.1:8009 system-one-chess
+KEV_BASE_URL=http://127.0.0.1:8009 ai-chess-lab
 ```
 
 The 0.8B model runs on a CPU with a few gigabytes of memory; the 4B and 9B want 16 to 32 GB.
@@ -126,7 +126,7 @@ OPENROUTER_API_KEY=sk-or-...
 Then run:
 
 ```sh
-.venv/bin/system-one-chess
+.venv/bin/ai-chess-lab
 ```
 
 `.env` is git-ignored, so the key never ends up in the repository. Variables already set in your shell take precedence over `.env`.
@@ -151,7 +151,7 @@ Then run:
 | `TOURNAMENT_DIR` | `tournaments` | Where tournaments are saved after every move, to resume them after a restart |
 | `LLM_REASONING_EFFORT` | unset | `low`, `medium` or `high`: how much thinking models reason when the models file says nothing for them |
 | `ILLEGAL_MOVES_LIMIT` | `2` | Illegal answers an LLM may give in a game before it forfeits, as in over-the-board chess |
-| `MODELS_FILE` | `system_one_chess/models.json` | JSON list of the LLM ids the Models dialog suggests, see [LLM opponents](#llm-opponents) |
+| `MODELS_FILE` | `ai_chess_lab/models.json` | JSON list of the LLM ids the Models dialog suggests, see [LLM opponents](#llm-opponents) |
 | `SESSION_SECRET` | random per process | Signs the session cookie; set it to keep sessions across restarts of a multi-worker setup |
 | `HOST` | `127.0.0.1` | Bind address |
 | `PORT` | `8000` | Bind port |
@@ -166,7 +166,7 @@ Every browser session gets its own game with its own id, so several people can p
 
 ## LLM opponents
 
-**Models**, in Settings (the gear icon), opens a table of the models a game can pick from: Jev and Laya, plus the LLMs your session added by OpenRouter id (`vendor/model`). The LLMs come configured from `system_one_chess/models.json`, so they are ready to pick as soon as an OpenRouter key is set, and the input adds more for your session. The shipped list, all verified against OpenRouter's catalogue on 2026-09-22: frontier models from the [LLM Arena](https://arena.ai/leaderboard/text) text leaderboard (`anthropic/claude-fable-5.1`, `anthropic/claude-opus-5`, `meta/muse-spark-1.3`, `google/gemini-3.8-flash`, `google/gemini-3.1-pro-preview`), a mid-priced one (`x-ai/grok-4.7`), two open-weights models (`deepseek/deepseek-v4.1-flash`, `z-ai/glm-5.3`) and two ultra cheap ones (`openai/gpt-5.6-luna`, `google/gemma-4-31b-it`). The same file carries the logos: `logos` maps a built-in id (`jev`, `laya`) or an OpenRouter vendor (`openai`, `x-ai`) to an image URL, so any model added by hand from a known vendor gets its logo. The server downloads each logo once, keeps it in memory and serves it at `/api/logos/{key}`; a logo that cannot be fetched, or is not an image, falls back to a lettered badge in the UI instead of failing. To suggest your own models or logos, point `MODELS_FILE` at a JSON file with the same shape, `{"suggested": [{"upstream": "vendor/model", "tier": "a short label"}], "logos": {"vendor": "https://..."}}`; it is read on every request, so editing it needs no restart. With Docker, mount it: `-v ./models.json:/models.json -e MODELS_FILE=/models.json`. Any other id works as long as OpenRouter serves it. LLMs always go through OpenRouter, so they need an OpenRouter key even when Jev is served by Vercel.
+**Models**, in Settings (the gear icon), opens a table of the models a game can pick from: Jev and Laya, plus the LLMs your session added by OpenRouter id (`vendor/model`). The LLMs come configured from `ai_chess_lab/models.json`, so they are ready to pick as soon as an OpenRouter key is set, and the input adds more for your session. The shipped list, all verified against OpenRouter's catalogue on 2026-09-22: frontier models from the [LLM Arena](https://arena.ai/leaderboard/text) text leaderboard (`anthropic/claude-fable-5.1`, `anthropic/claude-opus-5`, `meta/muse-spark-1.3`, `google/gemini-3.8-flash`, `google/gemini-3.1-pro-preview`), a mid-priced one (`x-ai/grok-4.7`), two open-weights models (`deepseek/deepseek-v4.1-flash`, `z-ai/glm-5.3`) and two ultra cheap ones (`openai/gpt-5.6-luna`, `google/gemma-4-31b-it`). The same file carries the logos: `logos` maps a built-in id (`jev`, `laya`) or an OpenRouter vendor (`openai`, `x-ai`) to an image URL, so any model added by hand from a known vendor gets its logo. The server downloads each logo once, keeps it in memory and serves it at `/api/logos/{key}`; a logo that cannot be fetched, or is not an image, falls back to a lettered badge in the UI instead of failing. To suggest your own models or logos, point `MODELS_FILE` at a JSON file with the same shape, `{"suggested": [{"upstream": "vendor/model", "tier": "a short label"}], "logos": {"vendor": "https://..."}}`; it is read on every request, so editing it needs no restart. With Docker, mount it: `-v ./models.json:/models.json -e MODELS_FILE=/models.json`. Any other id works as long as OpenRouter serves it. LLMs always go through OpenRouter, so they need an OpenRouter key even when Jev is served by Vercel.
 
 Every model gets the position (FEN, board, how many moves are left before the fifty-move rule draws the game, which here happens on its own rather than on a claim, and the moves so far) and the legal moves by their names, without check or mate signs; a reply that adds the sign is still understood. What can be read off the board and the moves is left to the model: captures, checks, mates, stalemates, hanging pieces and material are not spelled out. Only what needs the game's history is: a move that repeats an earlier position, that draws by a third repetition or the fifty-move rule, or that leaves the opponent a reply that draws at once by either; every model, Laya included, gets the same notes, since a game here ends on those at once: on the third repetition itself, never on a repetition a player could merely claim by repeating, so that player still gets to choose. The instructions add that a draw is worth avoiding when ahead and welcoming when behind. An LLM gets the same question as a System One model, plus the exact list of legal labels as a JSON array. It must reply with `{"choice": "<label>"}`, and the request carries a JSON schema whose only admitted values are those labels, so a model that honours structured output cannot answer outside the list; one that rejects the schema is asked again without it and remembered. Before an answer counts as illegal it is read leniently: UCI (`e2e4`), a missing or extra check or mate sign, castling with zeros, a capture without the `x`, case, punctuation, and the move named in a thinking model's reasoning when the content comes back empty all resolve to the legal move they mean. What remains is a genuinely illegal move, and the rule is the one of over-the-board chess: the first illegal move in a game earns a retry that quotes the wrong answer and repeats the legal labels, the second one, at any later point of the same game, forfeits it. `ILLEGAL_MOVES_LIMIT` changes that number for experiments. The game then ends as `1-0 by illegal moves` or `0-1 by illegal moves` and the PGN carries a `Termination` tag. Every attempt is paid for and counted in the footer; the state reports the illegal moves of each colour so far and keeps the text of every illegal reply next to its move, shown under the moves and exported with the data, so you can see what the model actually wrote. In a single game, **Continue** after such a loss forgives the illegal moves and plays on with the loser's count back at zero; the forfeit stays in the session ranking and the continuation counts as a new game. System One models cannot answer illegally, because they choose an option index rather than write a move.
 
@@ -202,7 +202,7 @@ So the same board hosts you against a cheap LLM, a frontier LLM against Jev, or 
 The 16-player tournament of September 2026 is in [`results/20260922-141451-7ccf.json`](results/20260922-141451-7ccf.json): 14 LLMs, Jev and a human, 9 Swiss rounds, 72 games, with every move and who decided it, the tokens, seconds and cost of each model call, the illegal answers and their text, the probabilities Jev gave, the results and the standings with their tie-breaks. The human's thinking times are left out. To replay it in the app, start it on that folder and open **Tournament**, **Saved**, **Review**:
 
 ```sh
-TOURNAMENT_DIR=results system-one-chess
+TOURNAMENT_DIR=results ai-chess-lab
 ```
 
 ## How it works
@@ -241,16 +241,16 @@ The backend is built with the [pico framework](https://github.com/dperezcabrera/
 
 | Module | Role |
 |---|---|
-| `system_one_chess/settings.py` | `@configured` dataclasses bound to environment variables |
-| `system_one_chess/provider.py` | `JevProvider` resolves the gateway for a request: the session's own choice and key if the browser set one, else the server's. It hides what differs between gateways: base URL, default model and where the cost is reported. `SessionCredentials` is the session-scoped holder of a key typed in the browser |
-| `system_one_chess/laya.py` | The local Laya model, loaded once per process on first use, off the event loop |
-| `system_one_chess/jev.py` | `JevApi`, the one place that talks HTTP to a gateway, and `JevMoveChooser`, which turns a position into a Choice question |
-| `system_one_chess/game.py` | `Game`, a session-scoped `@component` holding one board per browser session |
-| `system_one_chess/api.py` | `@controller` classes for the JSON API and the page, plus FastAPI configurers (sessions, static files, error mapping) |
-| `system_one_chess/main.py` | App factory: loads `.env`, boots the container with `pico_boot.init` |
-| `system_one_chess/static/` | The UI: plain HTML, CSS and ES modules. `engine.js` hides the UCI protocol behind two questions (how good is this position, how good is every move), `analysis.js` holds the judgement and percentile math and draws the charts |
+| `ai_chess_lab/settings.py` | `@configured` dataclasses bound to environment variables |
+| `ai_chess_lab/provider.py` | `JevProvider` resolves the gateway for a request: the session's own choice and key if the browser set one, else the server's. It hides what differs between gateways: base URL, default model and where the cost is reported. `SessionCredentials` is the session-scoped holder of a key typed in the browser |
+| `ai_chess_lab/laya.py` | The local Laya model, loaded once per process on first use, off the event loop |
+| `ai_chess_lab/jev.py` | `JevApi`, the one place that talks HTTP to a gateway, and `JevMoveChooser`, which turns a position into a Choice question |
+| `ai_chess_lab/game.py` | `Game`, a session-scoped `@component` holding one board per browser session |
+| `ai_chess_lab/api.py` | `@controller` classes for the JSON API and the page, plus FastAPI configurers (sessions, static files, error mapping) |
+| `ai_chess_lab/main.py` | App factory: loads `.env`, boots the container with `pico_boot.init` |
+| `ai_chess_lab/static/` | The UI: plain HTML, CSS and ES modules. `engine.js` hides the UCI protocol behind two questions (how good is this position, how good is every move), `analysis.js` holds the judgement and percentile math and draws the charts |
 
-Rules, legality, game-over detection and PGN come from [python-chess](https://python-chess.readthedocs.io). The board is [chessground](https://github.com/lichess-org/chessground) and the engine is [Stockfish.js](https://github.com/nmrugg/stockfish.js) 19 (lite, single-threaded, so it needs no special HTTP headers). Both are vendored under `system_one_chess/static/vendor/`, so the app works without any CDN.
+Rules, legality, game-over detection and PGN come from [python-chess](https://python-chess.readthedocs.io). The board is [chessground](https://github.com/lichess-org/chessground) and the engine is [Stockfish.js](https://github.com/nmrugg/stockfish.js) 19 (lite, single-threaded, so it needs no special HTTP headers). Both are vendored under `ai_chess_lab/static/vendor/`, so the app works without any CDN.
 
 ### API
 

@@ -4,6 +4,7 @@ from random import Random
 import chess
 import pytest
 
+from ai_chess_lab.settings import IllegalMovesSettings
 from experiments.option_order.experiment import (
     POSITIONS_FILE,
     _slot_terms,
@@ -17,7 +18,6 @@ from experiments.option_order.experiment import (
     slot_bonus,
     top_two_gap,
 )
-from system_one_chess.settings import IllegalMovesSettings
 
 
 def test_the_position_set_is_large_distinct_and_legal():
@@ -89,8 +89,8 @@ def test_a_model_that_favours_the_first_option_is_caught():
 def test_an_order_that_is_not_the_legal_moves_is_refused():
     import asyncio
 
-    from system_one_chess.jev import JevMoveChooser
-    from system_one_chess.provider import Gateway
+    from ai_chess_lab.jev import JevMoveChooser
+    from ai_chess_lab.provider import Gateway
 
     class Provider:
         def gateway(self, credentials=None):

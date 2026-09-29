@@ -4,8 +4,8 @@ import json
 import httpx
 import pytest
 
-from system_one_chess import retry
-from system_one_chess.retry import post_with_retries
+from ai_chess_lab import retry
+from ai_chess_lab.retry import post_with_retries
 
 
 @pytest.fixture(autouse=True)

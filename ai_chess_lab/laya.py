@@ -16,7 +16,7 @@ from .settings import LayaSettings
 
 NOT_INSTALLED = (
     "Laya is not installed on this server and no LAYA_ENDPOINT is set. Install it with "
-    "`pip install 'system-one-chess[laya]'` (about 1.2 GB with PyTorch) or pick another provider in Settings."
+    "`pip install 'ai-chess-lab[laya]'` (about 1.2 GB with PyTorch) or pick another provider in Settings."
 )
 REMOTE_NOTE = "Hugging Face Space, shared free GPU"
 

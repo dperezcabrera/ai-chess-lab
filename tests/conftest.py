@@ -1,6 +1,6 @@
 import pytest
 
-from system_one_chess import retry
+from ai_chess_lab import retry
 
 
 @pytest.fixture(autouse=True)

@@ -85,7 +85,7 @@ class GameController:
 
     @get("/export")
     async def export(self):
-        headers = {"Content-Disposition": 'attachment; filename="system-one-chess-tournament.json"'}
+        headers = {"Content-Disposition": 'attachment; filename="ai-chess-lab-tournament.json"'}
         return JSONResponse(self._tournament.export(), headers=headers)
 
     @get("/pgn")
@@ -237,12 +237,12 @@ class TournamentController:
 
     @get("/export")
     async def export(self):
-        headers = {"Content-Disposition": 'attachment; filename="system-one-chess-tournament.json"'}
+        headers = {"Content-Disposition": 'attachment; filename="ai-chess-lab-tournament.json"'}
         return JSONResponse(self._tournament.export(), headers=headers)
 
     @get("/pgn")
     async def pgn(self):
-        headers = {"Content-Disposition": 'attachment; filename="system-one-chess-tournament.pgn"'}
+        headers = {"Content-Disposition": 'attachment; filename="ai-chess-lab-tournament.pgn"'}
         return Response(self._tournament.pgn(), media_type="application/x-chess-pgn", headers=headers)
 
     @delete("")
@@ -313,7 +313,7 @@ class SessionConfigurer(FastApiConfigurer):
 
     def configure_app(self, app: FastAPI) -> None:
         app.add_middleware(
-            SessionMiddleware, secret_key=self._secret, session_cookie="system_one_chess", same_site="strict"
+            SessionMiddleware, secret_key=self._secret, session_cookie="ai_chess_lab", same_site="strict"
         )
 
 

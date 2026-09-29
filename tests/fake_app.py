@@ -11,10 +11,10 @@ from fastapi import FastAPI
 from pico_boot import init
 from pico_ioc import DictSource, EnvSource, FlatDictSource, configuration
 
-from system_one_chess import laya as laya_module
-from system_one_chess.jev import JevApi
-from system_one_chess.laya import LayaModel
-from system_one_chess.llm import LLMApi
+from ai_chess_lab import laya as laya_module
+from ai_chess_lab.jev import JevApi
+from ai_chess_lab.laya import LayaModel
+from ai_chess_lab.llm import LLMApi
 
 laya_module.available = lambda: True
 
@@ -45,7 +45,7 @@ class FakeLaya:
 
 def create_app() -> FastAPI:
     config = configuration(FlatDictSource({"OPENROUTER_API_KEY": "fake"}), EnvSource(), DictSource({}))
-    container = init(modules=["system_one_chess"], config=config)
+    container = init(modules=["ai_chess_lab"], config=config)
     container.get(JevApi)._client = httpx.AsyncClient(transport=httpx.MockTransport(jev))
     container.get(LLMApi)._client = httpx.AsyncClient(transport=httpx.MockTransport(llm))
     container.get(LayaModel)._load = lambda: FakeLaya()

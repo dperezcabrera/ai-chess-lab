@@ -42,8 +42,8 @@ import httpx
 ROOT = Path(__file__).resolve().parent.parent
 SITE = Path(__file__).resolve().parent / "site"
 CACHE = Path(__file__).resolve().parent / "cache"
-VENDOR = ROOT / "system_one_chess" / "static" / "vendor"
-MODELS_FILE = ROOT / "system_one_chess" / "models.json"
+VENDOR = ROOT / "ai_chess_lab" / "static" / "vendor"
+MODELS_FILE = ROOT / "ai_chess_lab" / "models.json"
 SYSTEM_ONE = {"jev": "Jev", "laya": "Laya", "kev": "Kev"} | {
     e["id"]: e["name"] for e in json.loads(MODELS_FILE.read_text()).get("system_one", [])
 }

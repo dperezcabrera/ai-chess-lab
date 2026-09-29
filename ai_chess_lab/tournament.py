@@ -649,7 +649,7 @@ class Tournament:
             entry["result"] = outcome["result"]
             _, pgn = await entry["game"].pgn()
             entry["pgn"] = pgn.replace(
-                '[Event "system-one-chess"]', '[Event "system-one-chess tournament"]', 1
+                '[Event "ai-chess-lab"]', '[Event "ai-chess-lab tournament"]', 1
             ).replace('[Round "?"]', f'[Round "{round_number}.{board_number}"]', 1)
             entry["record"] = {
                 "forfeited": colour_name(outcome["forfeited"]),
@@ -683,7 +683,7 @@ class Tournament:
             }
 
         return {
-            "format": "system-one-chess tournament",
+            "format": "ai-chess-lab tournament",
             "id": self._id,
             "exported_at": datetime.now(UTC).isoformat(timespec="seconds"),
             "system": "Swiss",

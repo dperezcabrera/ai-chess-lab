@@ -1,4 +1,4 @@
-from system_one_chess.llm import parse_choice, render
+from ai_chess_lab.llm import parse_choice, render
 
 LABELS = ["e4", "Nf3", "O-O", "exd5", "Qxf7#"]
 
@@ -37,7 +37,7 @@ def test_the_prompt_lists_every_label_and_notes_only_the_options_that_have_one()
 def test_chess_aliases_cover_uci_check_signs_castling_and_captures():
     import chess
 
-    from system_one_chess.jev import move_aliases
+    from ai_chess_lab.jev import move_aliases
 
     board = chess.Board("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1")
     options = {board.san(m): m for m in board.legal_moves}
@@ -54,8 +54,8 @@ def test_the_schema_only_admits_the_labels_and_a_model_that_rejects_it_is_asked_
 
     import httpx
 
-    from system_one_chess.llm import LLMApi, choice_schema
-    from system_one_chess.provider import Gateway
+    from ai_chess_lab.llm import LLMApi, choice_schema
+    from ai_chess_lab.provider import Gateway
 
     assert choice_schema(["e4", "Nf3"])["json_schema"]["schema"]["properties"]["choice"]["enum"] == ["e4", "Nf3"]
     bodies = []
@@ -87,9 +87,9 @@ def test_an_empty_or_errored_reply_is_asked_again_and_is_not_an_illegal_move(mon
 
     import httpx
 
-    from system_one_chess import llm as llm_module
-    from system_one_chess.llm import LLMApi, LLMError
-    from system_one_chess.provider import Gateway
+    from ai_chess_lab import llm as llm_module
+    from ai_chess_lab.llm import LLMApi, LLMError
+    from ai_chess_lab.provider import Gateway
 
     real_sleep = asyncio.sleep
     monkeypatch.setattr(llm_module.asyncio, "sleep", lambda _: real_sleep(0))
@@ -131,8 +131,8 @@ def test_a_reply_cut_short_while_thinking_is_asked_again_with_a_bigger_budget_be
 
     import httpx
 
-    from system_one_chess.llm import MAX_TOKENS, TRUNCATED_TOKENS, LLMApi
-    from system_one_chess.provider import Gateway
+    from ai_chess_lab.llm import MAX_TOKENS, TRUNCATED_TOKENS, LLMApi
+    from ai_chess_lab.provider import Gateway
 
     bodies = []
     replies = [

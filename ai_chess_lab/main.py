@@ -20,7 +20,7 @@ def load_env(path: Path = ENV_FILE) -> None:
 
 def create_app() -> FastAPI:
     load_env()
-    container = init(modules=["system_one_chess"], config=configuration(EnvSource(), DictSource({})))
+    container = init(modules=["ai_chess_lab"], config=configuration(EnvSource(), DictSource({})))
     return container.get(FastAPI)
 
 
@@ -28,7 +28,7 @@ def main() -> None:
     import uvicorn
 
     uvicorn.run(
-        "system_one_chess.main:create_app",
+        "ai_chess_lab.main:create_app",
         factory=True,
         host=os.environ.get("HOST", "127.0.0.1"),
         port=int(os.environ.get("PORT", "8000")),

@@ -178,7 +178,7 @@ class LLMApi:
             self._client,
             f"{gateway.base_url}/v1/chat/completions",
             json=body,
-            headers={"Authorization": f"Bearer {gateway.api_key}", "X-Title": "system-one-chess"},
+            headers={"Authorization": f"Bearer {gateway.api_key}", "X-Title": "ai-chess-lab"},
             timeout=max(gateway.timeout_seconds, 120),
         )
 

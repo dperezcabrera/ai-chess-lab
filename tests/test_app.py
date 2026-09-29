@@ -7,10 +7,10 @@ import httpx
 import pytest
 from pico_ioc import DictSource, FlatDictSource, configuration
 
-from system_one_chess.game import Game
-from system_one_chess.jev import JevApi, describe
-from system_one_chess.main import load_env
-from system_one_chess.standings import Standings
+from ai_chess_lab.game import Game
+from ai_chess_lab.jev import JevApi, describe
+from ai_chess_lab.main import load_env
+from ai_chess_lab.standings import Standings
 
 
 def jev_stub(pick):
@@ -34,7 +34,7 @@ def app(make_container, make_client):
             {"OPENROUTER_API_KEY": api_key, "JEV_MODEL": "jev-test", "LAYA_ENDPOINT": "", "KEV_ENDPOINT": ""}
         )
         config = configuration(flat, DictSource({}))
-        container = make_container("system_one_chess", "pico_fastapi", config=config)
+        container = make_container("ai_chess_lab", "pico_fastapi", config=config)
         build.container = container
         container.get(JevApi)._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
         return make_client(container)
@@ -98,7 +98,7 @@ def test_game_exports_as_pgn(app):
     client.post("/api/move", json={"from": "e2", "to": "e4"})
     game_id = client.post("/api/jev").json()["game_id"]
     response = client.get("/api/pgn")
-    assert response.headers["content-disposition"] == f'attachment; filename="system-one-chess-{game_id}.pgn"'
+    assert response.headers["content-disposition"] == f'attachment; filename="ai-chess-lab-{game_id}.pgn"'
     assert '[White "Human"]' in response.text and '[Black "Jev (jev-test)"]' in response.text
     assert '[Result "*"]' in response.text and "1. e4 e5 *" in response.text
 
@@ -159,10 +159,10 @@ def test_env_file_does_not_override_the_shell(tmp_path, monkeypatch):
 
 
 def provider_for(make_container, **env):
-    from system_one_chess.provider import JevProvider
+    from ai_chess_lab.provider import JevProvider
 
     container = make_container(
-        "system_one_chess", "pico_fastapi", config=configuration(FlatDictSource(env), DictSource({}))
+        "ai_chess_lab", "pico_fastapi", config=configuration(FlatDictSource(env), DictSource({}))
     )
     return container.get(JevProvider).gateway()
 
@@ -191,7 +191,7 @@ def test_an_explicit_provider_and_model_win(make_container):
 
 
 def test_cost_is_read_from_either_gateway_shape():
-    from system_one_chess.provider import JevProvider
+    from ai_chess_lab.provider import JevProvider
 
     assert JevProvider.cost_usd({"usage": {"input_tokens": 275, "cost": 0.00003}}) == 0.00003
     vercel = {"usage": {"input_tokens": 275}, "provider_metadata": {"gateway": {"cost": "0.00001155"}}}
@@ -218,7 +218,7 @@ def test_a_game_played_through_vercel_adds_up_its_cost(make_container, make_clie
         )
 
     config = configuration(FlatDictSource({"AI_GATEWAY_API_KEY": "vck"}), DictSource({}))
-    container = make_container("system_one_chess", "pico_fastapi", config=config)
+    container = make_container("ai_chess_lab", "pico_fastapi", config=config)
     container.get(JevApi)._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     client = make_client(container)
     client.post("/api/move", json={"from": "e2", "to": "e4"})
@@ -227,7 +227,7 @@ def test_a_game_played_through_vercel_adds_up_its_cost(make_container, make_clie
 
 
 def test_an_unknown_provider_is_rejected_at_startup(make_container):
-    from system_one_chess.provider import ProviderError
+    from ai_chess_lab.provider import ProviderError
 
     with pytest.raises(Exception) as error:
         provider_for(make_container, JEV_PROVIDER="azure")
@@ -251,7 +251,7 @@ def settings_app(make_container, make_client, seen, **env):
         return httpx.Response(200, json={"answers": {"move": {"choice": san, "probabilities": {san: 1.0}}}})
 
     container = make_container(
-        "system_one_chess", "pico_fastapi", config=configuration(FlatDictSource(env), DictSource({}))
+        "ai_chess_lab", "pico_fastapi", config=configuration(FlatDictSource(env), DictSource({}))
     )
     container.get(JevApi)._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     return container, make_client(container)
@@ -325,14 +325,14 @@ class FakeLaya:
 
 
 def laya_app(make_container, make_client, monkeypatch, installed=True, **env):
-    from system_one_chess import laya as laya_module
-    from system_one_chess.laya import LayaModel
+    from ai_chess_lab import laya as laya_module
+    from ai_chess_lab.laya import LayaModel
 
     monkeypatch.setattr(laya_module, "available", lambda: installed)
     env.setdefault("LAYA_ENDPOINT", "")
     env.setdefault("KEV_ENDPOINT", "")
     container = make_container(
-        "system_one_chess", "pico_fastapi", config=configuration(FlatDictSource(env), DictSource({}))
+        "ai_chess_lab", "pico_fastapi", config=configuration(FlatDictSource(env), DictSource({}))
     )
     fake = FakeLaya()
     monkeypatch.setattr(container.get(LayaModel), "_load", lambda: fake)
@@ -380,12 +380,12 @@ def test_each_colour_can_be_played_by_a_different_model(make_container, make_cli
         san = next(iter(body["questions"]["move"]["criteria"]))
         return httpx.Response(200, json={"answers": {"move": {"choice": san, "probabilities": {san: 1.0}}}})
 
-    from system_one_chess import laya as laya_module
-    from system_one_chess.laya import LayaModel
+    from ai_chess_lab import laya as laya_module
+    from ai_chess_lab.laya import LayaModel
 
     monkeypatch.setattr(laya_module, "available", lambda: True)
     config = configuration(FlatDictSource({"OPENROUTER_API_KEY": "server-key"}), DictSource({}))
-    container = make_container("system_one_chess", "pico_fastapi", config=config)
+    container = make_container("ai_chess_lab", "pico_fastapi", config=config)
     container.get(JevApi)._client = httpx.AsyncClient(transport=httpx.MockTransport(gateway_handler))
     fake = FakeLaya()
     monkeypatch.setattr(container.get(LayaModel), "_load", lambda: fake)
@@ -427,13 +427,13 @@ def llm_stub(replies, seen):
 def llm_app(make_container, make_client, replies, seen, **env):
     import tempfile
 
-    from system_one_chess.llm import LLMApi
+    from ai_chess_lab.llm import LLMApi
 
     env.setdefault("TOURNAMENT_DIR", tempfile.mkdtemp(prefix="tournaments-"))
     env.setdefault("LAYA_ENDPOINT", "")
     env.setdefault("KEV_ENDPOINT", "")
     config = configuration(FlatDictSource({"OPENROUTER_API_KEY": "server-key", **env}), DictSource({}))
-    container = make_container("system_one_chess", "pico_fastapi", config=config)
+    container = make_container("ai_chess_lab", "pico_fastapi", config=config)
     container.get(LLMApi)._client = httpx.AsyncClient(transport=httpx.MockTransport(llm_stub(replies, seen)))
     container.get(JevApi)._client = httpx.AsyncClient(
         transport=httpx.MockTransport(jev_stub(lambda sans: next(iter(sans)))[0])
@@ -443,7 +443,7 @@ def llm_app(make_container, make_client, replies, seen, **env):
 
 
 def test_models_are_listed_and_llms_are_added_per_session(make_container, make_client):
-    from system_one_chess.models import DEFAULT_MODELS_FILE
+    from ai_chess_lab.models import DEFAULT_MODELS_FILE
 
     client = llm_app(make_container, make_client, [], [])
     listed = client.get("/api/models").json()
@@ -468,7 +468,7 @@ def test_models_are_listed_and_llms_are_added_per_session(make_container, make_c
         "logo": "/api/logos/openai",
         "removable": True,
     }
-    from system_one_chess.models import ModelRegistry
+    from ai_chess_lab.models import ModelRegistry
 
     registry = llm_app.container.get(ModelRegistry)
     assert registry.reasoning_for("z-ai/glm-5.3") == {"effort": "low"}, "the models file caps the heavy thinkers"
@@ -569,10 +569,10 @@ def test_illegal_answers_add_up_over_the_game_as_in_chess(make_container, make_c
 
 
 def test_an_llm_needs_an_openrouter_key(make_container, make_client):
-    from system_one_chess.llm import LLMApi
+    from ai_chess_lab.llm import LLMApi
 
     container = make_container(
-        "system_one_chess",
+        "ai_chess_lab",
         "pico_fastapi",
         config=configuration(FlatDictSource({"AI_GATEWAY_API_KEY": "vck"}), DictSource({})),
     )
@@ -586,7 +586,7 @@ def test_an_llm_needs_an_openrouter_key(make_container, make_client):
 
 
 def test_the_suggested_models_come_from_a_file_that_is_read_on_every_request(make_container, make_client, tmp_path):
-    from system_one_chess.models import DEFAULT_MODELS_FILE
+    from ai_chess_lab.models import DEFAULT_MODELS_FILE
 
     shipped = json.loads(DEFAULT_MODELS_FILE.read_text())
     assert any(entry["upstream"] == "x-ai/grok-4.7" for entry in shipped["suggested"])
@@ -607,7 +607,7 @@ def test_the_suggested_models_come_from_a_file_that_is_read_on_every_request(mak
 
 
 def test_logos_are_downloaded_once_and_a_missing_one_is_a_soft_404(make_container, make_client, tmp_path):
-    from system_one_chess.models import LogoCache
+    from ai_chess_lab.models import LogoCache
 
     custom = tmp_path / "models.json"
     custom.write_text(
@@ -662,7 +662,7 @@ def test_finished_games_build_a_session_ranking(make_container, make_client):
 
 
 def test_swiss_pairing_matches_neighbours_avoids_rematches_and_gives_the_bye_to_the_last():
-    from system_one_chess.tournament import pair_round
+    from ai_chess_lab.tournament import pair_round
 
     balance = {"a": 0, "b": 0, "c": 0, "d": 0, "e": 0}
     pairs, bye = pair_round(["a", "b", "c", "d", "e"], set(), balance, set())
@@ -689,7 +689,7 @@ def test_a_league_plays_the_return_leg_with_the_colours_swapped(make_container, 
 def test_a_full_league_meets_every_pair_once_with_one_bye_each_and_balanced_colours():
     from itertools import combinations
 
-    from system_one_chess.tournament import league_round, league_rounds
+    from ai_chess_lab.tournament import league_round, league_rounds
 
     for count in range(2, 17):
         players = [f"p{index}" for index in range(count)]
@@ -769,7 +769,7 @@ def test_a_swiss_tournament_plays_its_boards_itself_and_waits_for_you(make_conta
     assert client.get("/api/tournament/board/2").status_code == 409
     assert client.post("/api/tournament/board/1/pardon").status_code == 409, "your board was not lost by illegal moves"
     pgn = client.get("/api/tournament/board/1/pgn")
-    assert pgn.status_code == 200 and '[Event "system-one-chess"]' in pgn.text
+    assert pgn.status_code == 200 and '[Event "ai-chess-lab"]' in pgn.text
     earlier = client.get("/api/tournament/board/1?round=1").json()
     assert (
         earlier["over"]
@@ -827,7 +827,7 @@ def test_the_state_stays_readable_while_a_model_thinks(make_container, make_clie
     import asyncio
     import time
 
-    from system_one_chess.llm import LLMApi
+    from ai_chess_lab.llm import LLMApi
 
     async def slow(request: httpx.Request) -> httpx.Response:
         await asyncio.sleep(1.5)
@@ -1011,7 +1011,7 @@ def test_resuming_a_tournament_in_another_session_takes_it_over(make_container, 
 
 
 def test_laya_answers_through_the_demo_space_when_it_is_not_installed(make_container, make_client):
-    from system_one_chess.laya import LayaModel
+    from ai_chess_lab.laya import LayaModel
 
     calls = []
 
@@ -1055,8 +1055,8 @@ def test_the_only_legal_move_is_played_without_asking_the_model():
 
     import chess
 
-    from system_one_chess.jev import JevMoveChooser
-    from system_one_chess.settings import IllegalMovesSettings
+    from ai_chess_lab.jev import JevMoveChooser
+    from ai_chess_lab.settings import IllegalMovesSettings
 
     chooser = JevMoveChooser(api=None, provider=None, laya=None, llm=None, illegal=IllegalMovesSettings())
     board = chess.Board("7k/8/8/8/8/8/8/K6Q w - - 0 1")
@@ -1069,7 +1069,7 @@ def test_the_only_legal_move_is_played_without_asking_the_model():
 def test_a_tournament_can_be_paused_and_played_on(make_container, make_client):
     import time
 
-    from system_one_chess.llm import LLMApi
+    from ai_chess_lab.llm import LLMApi
 
     async def slow(request: httpx.Request) -> httpx.Response:
         await asyncio_sleep(0.4)
@@ -1135,7 +1135,7 @@ def test_you_can_pause_your_own_clock_while_it_is_your_move(make_container, make
 
 
 def test_kev_answers_through_its_demo_space_or_a_local_server(make_container, make_client, monkeypatch):
-    from system_one_chess.kev import KevModel
+    from ai_chess_lab.kev import KevModel
 
     monkeypatch.setenv("HF_TOKEN", "hf_test")
 
@@ -1216,7 +1216,7 @@ def test_a_system_one_model_from_the_models_file_plays_through_its_own_server_an
     state = client.post("/api/jev").json()
     assert len(state["history"]) == 1 and state["models"]["white"] == "openjev"
     assert seen == [("https://s1.test/v1/systemone", "Bearer sk-test", "openjev-latest")]
-    from system_one_chess.models import read_models_file
+    from ai_chess_lab.models import read_models_file
 
     custom.write_text(json.dumps({"suggested": [], "logos": {}, "system_one": [endpoint | {"id": "jev"}]}))
     with pytest.raises(ValueError, match="system_one"):
@@ -1325,7 +1325,7 @@ def test_a_round_can_be_added_to_a_running_or_finished_tournament(make_container
 def test_options_say_only_what_needs_the_game_history_repetitions_and_the_fifty_move_rule():
     import chess
 
-    from system_one_chess.jev import _state
+    from ai_chess_lab.jev import _state
 
     board = chess.Board()
     for san in ("Nf3", "Nf6", "Ng1"):
@@ -1389,7 +1389,7 @@ def test_a_game_is_not_over_until_the_third_repetition_actually_happens():
 
     import chess
 
-    from system_one_chess.game import finished, termination
+    from ai_chess_lab.game import finished, termination
 
     board = chess.Board()
     for san in ("Nf3", "Nf6", "Ng1", "Ng8", "Nf3", "Nf6", "Ng1"):
@@ -1400,8 +1400,8 @@ def test_a_game_is_not_over_until_the_third_repetition_actually_happens():
     assert finished(board) and termination(board) == "threefold repetition"
     assert board.result(claim_draw=True) == "1/2-1/2"
 
-    from system_one_chess.game import Game
-    from system_one_chess.standings import Standings
+    from ai_chess_lab.game import Game
+    from ai_chess_lab.standings import Standings
 
     game = Game(chooser=None, credentials=None, registry=None, session_models=None, standings=Standings(registry=None))
     game._reset("white")
