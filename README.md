@@ -28,35 +28,35 @@ In the game above, from the last round of the tournament, the two sides play lev
 
 ## Quick start with Docker
 
-You only need Docker and one API key, from either gateway (see [Getting a key](#getting-a-key)). A prebuilt image is published on the GitHub Container Registry, so there is nothing to build:
+You only need Docker. A prebuilt image is published on the GitHub Container Registry, so there is nothing to build, and it comes with the 72-game tournament of September 2026 already loaded: no key is needed to replay it.
 
 ```sh
-docker pull ghcr.io/dperezcabrera/system-one-chess:latest
-docker run --rm -p 127.0.0.1:8000:8000 -e AI_GATEWAY_API_KEY=... ghcr.io/dperezcabrera/system-one-chess:latest
+docker run --rm -p 127.0.0.1:8000:8000 ghcr.io/dperezcabrera/ai-chess-lab:latest
 ```
 
-With an OpenRouter key, pass `-e OPENROUTER_API_KEY=sk-or-...` instead. The app uses whichever key it finds.
+Open http://localhost:8000/tournament and pick **Tournament**, **Saved**, **Review**: every round, every board, the standings, and the Stockfish analysis of any game, which runs in your browser.
 
-Open http://localhost:8000.
-
-If the key is already exported in your shell, pass it through without typing it:
+To play, or to run tournaments of your own, the models need a key, from either gateway (see [Getting a key](#getting-a-key)): `-e AI_GATEWAY_API_KEY=...` for Vercel or `-e OPENROUTER_API_KEY=sk-or-...` for OpenRouter, which also serves every LLM. If the key is already exported in your shell, pass it through without typing it:
 
 ```sh
-docker run --rm -p 127.0.0.1:8000:8000 -e AI_GATEWAY_API_KEY -e OPENROUTER_API_KEY ghcr.io/dperezcabrera/system-one-chess:latest
+docker run --rm -p 127.0.0.1:8000:8000 -e AI_GATEWAY_API_KEY -e OPENROUTER_API_KEY ghcr.io/dperezcabrera/ai-chess-lab:latest
 ```
 
-Available tags: `latest` and the version number, such as `0.5.0`.
+A key can also be entered in the browser, behind the gear icon, for your session only. The key is only read at run time; it is never baked into the image.
 
-To build the image yourself instead:
+Tournaments are saved in `/app/tournaments` inside the container, so they go when it is removed. To keep them, mount a folder there; it replaces the bundled tournament, so copy [`results/20260922-141451-7ccf.json`](results/20260922-141451-7ccf.json) into it to keep that one too:
+
+```sh
+mkdir -p tournaments && cp results/*.json tournaments/
+docker run --rm -p 127.0.0.1:8000:8000 -e OPENROUTER_API_KEY -v ./tournaments:/app/tournaments ghcr.io/dperezcabrera/ai-chess-lab:latest
+```
+
+Available tags: `latest` and the version number, such as `0.6.0`. To build the image yourself instead:
 
 ```sh
 docker build -t ai-chess-lab .
-docker run --rm -p 127.0.0.1:8000:8000 -e OPENROUTER_API_KEY ai-chess-lab
+docker run --rm -p 127.0.0.1:8000:8000 ai-chess-lab
 ```
-
-Or keep it in a `.env` file (see below) and use `--env-file .env`.
-
-The key is only read at run time. It is never baked into the image.
 
 ## Laya, the open-source alternative
 
@@ -205,6 +205,8 @@ The 16-player tournament of September 2026 is in [`results/20260922-141451-7ccf.
 TOURNAMENT_DIR=results ai-chess-lab
 ```
 
+The Docker image comes with it already loaded, and needs no key to replay it: see [Quick start with Docker](#quick-start-with-docker).
+
 ## How it works
 
 Each Jev turn sends one request to the gateway's System One endpoint, `POST https://ai-gateway.vercel.sh/typesafe/v1/systemone` or `POST https://openrouter.ai/api/v1/systemone`. Both take the same body:
@@ -332,8 +334,8 @@ gh auth token | docker login ghcr.io -u dperezcabrera --password-stdin
 Then build, tag and push:
 
 ```sh
-docker build -t ghcr.io/dperezcabrera/system-one-chess:0.5.0 -t ghcr.io/dperezcabrera/system-one-chess:latest .
-docker push --all-tags ghcr.io/dperezcabrera/system-one-chess
+docker build -t ghcr.io/dperezcabrera/ai-chess-lab:0.6.0 -t ghcr.io/dperezcabrera/ai-chess-lab:latest .
+docker push --all-tags ghcr.io/dperezcabrera/ai-chess-lab
 ```
 
 A new package on the registry starts private. Make it public once, from the package settings on GitHub, so that `docker pull` works without logging in.

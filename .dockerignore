@@ -10,3 +10,7 @@ tests
 screenshots
 experiments
 target
+tournaments
+viewer
+.run
+results/*.bak*
