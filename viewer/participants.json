@@ -81,7 +81,7 @@
     "Stockfish judges every game afterwards. Ties in the standings are broken by Buchholz Cut 1, Buchholz, Sonneborn-Berger and wins."
    ],
    "sources": [
-    "https://github.com/dperezcabrera/system-one-chess"
+    "https://github.com/dperezcabrera/ai-chess-lab"
    ],
    "stamp": "Who cares?"
   },

@@ -427,7 +427,7 @@ class Game:
                 return f"{model.name} ({model.upstream})"
 
             game.headers["Event"] = "system-one-chess"
-            game.headers["Site"] = "https://github.com/dperezcabrera/system-one-chess"
+            game.headers["Site"] = "https://github.com/dperezcabrera/ai-chess-lab"
             game.headers["Date"] = datetime.now(UTC).strftime("%Y.%m.%d")
             game.headers["White"] = "Human" if self._human == "white" else player(chess.WHITE)
             game.headers["Black"] = "Human" if self._human == "black" else player(chess.BLACK)

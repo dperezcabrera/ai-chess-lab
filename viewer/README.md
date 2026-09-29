@@ -19,7 +19,7 @@ The build splits each tournament into a small summary file and one file per game
 ```bash
 cd viewer/dist
 git init -b gh-pages && git add . && git commit -m "Game viewer"
-git push -f https://github.com/dperezcabrera/system-one-chess.git gh-pages
+git push -f https://github.com/dperezcabrera/ai-chess-lab.git gh-pages
 ```
 
 Then choose the `gh-pages` branch as the source in the repository's Pages settings.

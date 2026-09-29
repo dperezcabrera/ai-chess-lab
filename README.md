@@ -104,8 +104,8 @@ A key entered this way is sent to the server, held in memory for that browser se
 Requires Python 3.11+.
 
 ```sh
-git clone https://github.com/dperezcabrera/system-one-chess.git
-cd system-one-chess
+git clone https://github.com/dperezcabrera/ai-chess-lab.git
+cd ai-chess-lab
 python3 -m venv .venv
 .venv/bin/pip install -e .
 cp .env.example .env
